@@ -1,12 +1,12 @@
 # Wi-Sun_EnergyMeter
 ## Fetch data from house energy meter using a raspberry pi with Wi-SUN module BP35A1
 
-### Pyhon3用クラス*Y3Module 0.1a*
+### Python3用クラス*Y3Module 0.1a*
 Wi-SUNモジュールBP35A1(ROHM)をUART経由でコントロールします。  
 Wi-SUNモジュールをコントロールするホストとしてRaspberry Piを想定しています。  
 Wi-SUNモジュールのリセットするためのIO及びUART周りをどうにかすれば、他のプラットフォームへの移植の可能でしょう。  
 
-### y3module.py: *class Y3Module*の定義ファイル。  
+### y3module.py: *class Y3Module*の定義ファイル  
 `from y3module import *`って感じでインポートして使います。  
 現バージョンでは、２つのWi-SUNモジュール間をTCP, UDPで送受信するだけですが、将来は、スマートメーター（電力量計）にアクセスし、瞬時電力等を取得する予定です。
 
@@ -24,7 +24,7 @@ Pongを受信したデバイスは、Ping送信からPong受信までの経過�
 `python3 y3PingPong.py --mode d`  
 
 デフォルトではUDPで送受信します。TCPで送受信するには、デバイスを次のコマンドで起動します。  
-`python3 y3PingPong.py --mode d --transpor t`  
+`python3 y3PingPong.py --mode d --transport t`  
 
 PingPongのオプションの詳細はヘルプを参照してください。  
 `python3 y3PingPong.py --help`  
