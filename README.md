@@ -1,7 +1,7 @@
 # Wi-Sun_EnergyMeter
 ## Fetch data from house energy meter using a raspberry pi with Wi-SUN module BP35A1
 
-### Pyhon3用クラス*Y3Module 0.1a*
+### Python3用クラス*Y3Module 0.1a*
 Wi-SUNモジュールBP35A1(ROHM)をUART経由でコントロールします。  
 Wi-SUNモジュールをコントロールするホストとしてRaspberry Piを想定しています。  
 Wi-SUNモジュールのリセットするためのIO及びUART周りをどうにかすれば、他のプラットフォームへの移植の可能でしょう。  
