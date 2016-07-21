@@ -1,7 +1,8 @@
+# coding: UTF-8
 #
 # y3module.py
 #
-# class definition for Wi-SUN module BP35A1, ROHM
+# Wi-SUNモジュールBP35A1(ROHM) 通信クラス Y3Module
 #
 # Copyright(C) 2016 pi@blue-black.ink
 #
@@ -13,49 +14,65 @@ import time
 
 class Y3Module(threading.Thread):
     # port Numbers
-    Y3_UDP_ECHONET_PORT = 3610  # echonet udp
-    Y3_UDP_PANA_PORT = 716      # pana
-    Y3_TCP_PORT = 3610          # tcp
+    Y3_UDP_ECHONET_PORT = 3610  # ECHONET UDPポート
+    Y3_UDP_PANA_PORT = 716      # PANAポート
+    Y3_TCP_PORT = 3610          # TCPポート
 
-    # uart default configurations
-    uart_dev = '/dev/ttyAMA0'    # device name
-    uart_baud = 115200           # baud raid
-    uart_timeout = 1             # timeout [s]
-    uart_hdl = None              # handler
+    # UARTデフォルト設定
+    uart_dev = '/dev/ttyAMA0'
+    uart_baud = 115200
+    uart_timeout = 1            # 1s
+    uart_hdl = None             # ハンドラ
 
-    msg_list_queue = []             # Queue for received messages from UART
+    msg_list_queue = []         # 受信データ用リスト
 
-    term_flag = False            # flag to terminate self.run()
+    term_flag = False           # 別スレッドrun()の終了フラグ
 
+    # ERXUDP, ERXTCPのフォーマット, True: ASCII， False: Binary
+    def set_opt(self, flag):
+        current = self.get_opt()
 
-    # enable/disable echo-back
+        if flag and not current:        # 変更無しの場合はモジュールに書き込まない（FLASHの書き込み制限）
+            self.writeline('WOPT 01')
+            self.wait_message('OK')
+        elif not flag and current:
+            self.writeline('WOPT 00')
+            self.wait_message('OK')
+        return True
+
+    def get_opt(self):
+        self.writeline('ROPT')
+        res = self.wait_message('OK')
+        return True if res['MESSAGE'][0] == '01' else False
+
+    # エコーバック
     def set_echoback(self, flag):
         b = '1' if flag else '0'
         self.writeline('SKSREG SFE ' + b)
         self.wait_message('OK')
 
-    # set Wi-Sun channel
+    # Wi-Sunチャンネル
     def set_channel(self, ch):
         self.writeline('SKSREG S02 {:02X}'.format(ch))
         self.wait_message('OK')
 
-    # set pairing ID
+    # ペアリングID
     def set_pairing_id(self, pairid):
         self.writeline('SKSREG S0A ' + pairid)
         self.wait_message('OK')
 
-    # set PAN ID
+    # PAN ID
     def set_pan_id(self, pan):
         self.writeline('SKSREG S03 {:04X}'.format(pan))
         self.wait_message('OK')
 
-    # ensable/disable accepting beacon
+    # ビーコンへの反応
     def set_accept_beacon(self, flag):
         b = '1' if flag else '0'
         self.writeline('SKSREG S15 ' + b)
         self.wait_message('OK')
 
-    # set password
+    # パスワード
     def set_password(self, password):
         length = len(password)
         if length < 1 or length > 32:
@@ -66,7 +83,7 @@ class Y3Module(threading.Thread):
             result = True
         return result
 
-    # set Route-B ID
+    # ルートB ID
     def set_routeb_id(self, rbid):
         if len(rbid) != 32:
             result = False
@@ -76,23 +93,23 @@ class Y3Module(threading.Thread):
             result = True
         return result
 
-    # start PAA
+    # PAA開始
     def start_paa(self):
         self.writeline('SKSTART')
         self.wait_message('OK')
 
-    # start PaC
+    # PaC開始
     def start_pac(self, ip6):
         self.writeline('SKJOIN ' + ip6)
         self.wait_message('OK')
 
-    # GET IP6 address
+    # IP6アドレス
     def get_ip6(self, add):
         self.writeline('SKLL64 ' + add)
         res = self.wait_message('UNKNOWN')
         return res['MESSAGE'][0]
 
-    # Open TCP connection
+    # TCPコネクション開始
     def tcp_connect(self, ip6, rport, lport):
         rport_str = ' {:04X}'.format(rport)
         lport_str = ' {:04X}'.format(lport)
@@ -100,7 +117,7 @@ class Y3Module(threading.Thread):
         res = self.wait_message('ETCP')
         return res
 
-    # Close TCP connection
+    # TCPコネクション停止
     def tcp_disconnect(self, handle):
         self.writeline('SKCLOSE ' + str(handle))
         fin_flag = False
@@ -109,14 +126,14 @@ class Y3Module(threading.Thread):
             if res['STATUS'] == 3:
                 fin_flag = True
 
-    # Send messsage via TCP handle
+    # TCPで送信
     def tcp_send(self, handle, message):
         length = len(message)
         self.writeline('SKSEND ' + str(handle) + ' {:04X} {}'.format(length, message))
         res = self.wait_message('ETCP')
         return res['STATUS'] == 5
 
-    # Send message via UDP handle
+    # UDPで送信
     def udp_send(self, handle, ip6, security, port, message):
         sec_str = ' 1' if security else ' 0'
         len_str = ' {:04X} '.format(len(message))
@@ -129,7 +146,7 @@ class Y3Module(threading.Thread):
                 fin_flag = True
         self.wait_message('OK')
 
-    # ED scan
+    # EDスキャン
     def ed_scan(self):
         self.writeline('SKSCAN 0 FFFFFFFF 4')
         self.wait_message('EEDSCAN')
@@ -147,9 +164,10 @@ class Y3Module(threading.Thread):
         for i in range(0, len(res), 2):
             lqi_list.append([int(res[i + 1], base=16), int(res[i], base=16)])  # [[LQI, channel], [LQI, channel],....]
             lqi_list.sort()  # sort by LQI
+
         return [lqi_list[0][1], lqi_list[0][0]]  # minimum LQI channel
 
-    # Active scan
+    # アクティブスキャン
     def active_scan(self):
         self.writeline('SKSCAN 2 FFFFFFFF 6')
         scan_end = False
@@ -183,9 +201,7 @@ class Y3Module(threading.Thread):
                 time.sleep(0.01)
         return channel_list
 
-    #
-    # UART
-    #
+    # UART関係
     def set_uart_baud(self, baud):
         self.uart_baud = baud
 
@@ -204,23 +220,23 @@ class Y3Module(threading.Thread):
     def get_uart_timeout(self):
         return self.uart_timeout
 
-    # open UART and set handler
+    # UARTオープン
     def uart_open(self, dev=uart_dev, baud=uart_baud, timeout=uart_timeout):
         self.uart_hdl = serial.Serial(dev, baud, timeout=timeout)
 
-    # close UART port
+    # UARTクローズ
     def uart_close(self):
         self.uart_hdl.close()
 
-    # write one line
+    # 1行書き込み
     def writeline(self, msg_str):
         self.uart_hdl.write(bytes(msg_str + '\r\n', 'UTF-8'))
 
-    # read one line
+    # 1行読み込み
     def readline(self):
         return self.uart_hdl.readline().decode('UTF-8').strip()
 
-    # Wait for the specific message
+    # メッセージの受信待ち
     def wait_message(self, message):
         fin = False
         msg_list = []
@@ -233,7 +249,7 @@ class Y3Module(threading.Thread):
                 time.sleep(0.01)
         return msg_list
 
-    # parse received message
+    # 受信メッセージの判別処理
     @staticmethod
     def parse_message(msg):
         msg_list = {}
@@ -278,6 +294,8 @@ class Y3Module(threading.Thread):
 
         if cols[0] == 'OK':
             msg_list['COMMAND'] = cols[0]
+            if len(cols) > 1:
+                msg_list['MESSAGE'] = cols[1:len(cols)]
             return msg_list
 
         if cols[0] == 'EVENT':
@@ -336,22 +354,31 @@ class Y3Module(threading.Thread):
         msg_list['MESSAGE'] = cols
         return msg_list
 
-    # queue message
+    # ASCII文字コード（Hex）を文字列に変換
+    @staticmethod
+    def ascii_hex_to_str(ascii_str):
+        str = ''
+        for i in range(0, int(len(ascii_str) / 2)):
+            str += chr(int(ascii_str[2 * i:2 * (i + 1)], base=16))
+        return str
+
+    # メッセージをリストに追加
     def enqueue_message(self, msg_list):
+        #print(msg_list)     # debug
         self.msg_list_queue.append(msg_list)
 
-    # dequeue message
+    # メッセージをリストから取り出す
     def dequeue_message(self):
         if self.msg_list_queue:
             return self.msg_list_queue.pop(0)
         else:
             return {}
 
-    # return queue size
+    # リスト内のメッセージ数
     def get_queue_size(self):
         return len(self.msg_list_queue)
 
-    # uart receiver (muilti threading)
+    #  メッセージ受信用スレッド
     def run(self):
         while not self.term_flag:
             msg = self.readline()
@@ -361,6 +388,7 @@ class Y3Module(threading.Thread):
             else:       # timeout
                 pass    # do nothing
 
-    # terminate uart receiver, run()
+    # run()の停止
     def terminate(self):
         self.term_flag = True
+        self.join()
