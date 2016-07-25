@@ -71,19 +71,20 @@ $ sudo apt-get install git
 
 2組の(BP35A1 + Raspberry Pi)の適当なディレクトリで，次のコマンドを実行します。  
 ```
-$ git clone --depth 1 https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
+$ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
+$ git checkout origin/0.2a
 $ chmod +x y3PingPong.py
 ```
 
 ## Contents
-* y3module.py: BP35A1通信クラス
-* y3PingPong.py: デモプログラム
-* README.md: このファイル
-* LICENCE.md: MITライセンス
-* wiring.png: 実体配線図
-* circuit.png: 回路図
-~~ec_energy_meter.py: ECHONET Liteによる電力量計との通信~~（暫くお待ちください）
+* y3module.py: BP35A1通信クラス  
+* y3PingPong.py: デモプログラム  
+* README.md: このファイル  
+* LICENCE.md: MITライセンス  
+* wiring.png: 実体配線図  
+* circuit.png: 回路図  
+* ec_energy_meter.py: スマート電力量計通信クラス（工事中）  
 
 ## サンプルプログラム（y3PingPong）
 2組の(BP35A1 + Raspberry Pi)で相互に通信を行うサンプルプログラムです。  
@@ -101,7 +102,6 @@ TCPで送受信するには、raspi2にて、上のコマンドに代わりに�
 プログラムを終了するときは，`CTRL`と`c`を同時に押します。  
 
 PingPongの全オプションは次のとおりです。  
-
 ```
 $ ./y3PingPong.py --help 
 usage: y3PingPong.py [-h] [-m {c,C,d,D}] [-i ID] [-t {u,U,t,T}]
@@ -116,10 +116,10 @@ optional arguments:
 ```
 
 ## History  
-0.1a: 初版
+0.1a: 初版  
 0.2a: 軽微な変更，README.mdを刷新  
 
 ## Reference
-[Raspberry Pi](https://www.raspberrypi.org)
-[Wi-SUNモジュール BP35A1 (ROHM)](http://www.rohm.co.jp/web/japan/news-detail?news-title=2015-01-07_ad&defaultGroupId=false)
-[ECHONET Lite](https://echonet.jp)
+[Raspberry Pi](https://www.raspberrypi.org)  
+[Wi-SUNモジュール BP35A1 (ROHM)](http://www.rohm.co.jp/web/japan/news-detail?news-title=2015-01-07_ad&defaultGroupId=false)  
+[ECHONET Lite](https://echonet.jp)  
