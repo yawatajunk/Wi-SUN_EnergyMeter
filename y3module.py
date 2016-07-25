@@ -33,43 +33,43 @@ class Y3Module(threading.Thread):
         current = self.get_opt()
 
         if flag and not current:        # 変更無しの場合はモジュールに書き込まない（FLASHの書き込み制限）
-            self.writeline('WOPT 01')
+            self.writeline('WOPT 01', True)
             self.wait_message('OK')
         elif not flag and current:
-            self.writeline('WOPT 00')
+            self.writeline('WOPT 00', True)
             self.wait_message('OK')
         return True
 
     def get_opt(self):
-        self.writeline('ROPT')
+        self.writeline('ROPT', True)
         res = self.wait_message('OK')
         return True if res['MESSAGE'][0] == '01' else False
 
     # エコーバック
     def set_echoback(self, flag):
         b = '1' if flag else '0'
-        self.writeline('SKSREG SFE ' + b)
+        self.writeline('SKSREG SFE ' + b, True)
         self.wait_message('OK')
 
     # Wi-Sunチャンネル
     def set_channel(self, ch):
-        self.writeline('SKSREG S02 {:02X}'.format(ch))
+        self.writeline('SKSREG S02 {:02X}'.format(ch), True)
         self.wait_message('OK')
 
     # ペアリングID
     def set_pairing_id(self, pairid):
-        self.writeline('SKSREG S0A ' + pairid)
+        self.writeline('SKSREG S0A ' + pairid, True)
         self.wait_message('OK')
 
     # PAN ID
     def set_pan_id(self, pan):
-        self.writeline('SKSREG S03 {:04X}'.format(pan))
+        self.writeline('SKSREG S03 {:04X}'.format(pan), True)
         self.wait_message('OK')
 
     # ビーコンへの反応
     def set_accept_beacon(self, flag):
         b = '1' if flag else '0'
-        self.writeline('SKSREG S15 ' + b)
+        self.writeline('SKSREG S15 ' + b, True)
         self.wait_message('OK')
 
     # パスワード
@@ -78,7 +78,7 @@ class Y3Module(threading.Thread):
         if length < 1 or length > 32:
             result = False
         else:
-            self.writeline('SKSETPWD {:X} {}'.format(length, password))
+            self.writeline('SKSETPWD {:X} {}'.format(length, password), True)
             self.wait_message('OK')
             result = True
         return result
@@ -88,24 +88,24 @@ class Y3Module(threading.Thread):
         if len(rbid) != 32:
             result = False
         else:
-            self.writeline('SKSETRBID ' + rbid)
+            self.writeline('SKSETRBID ' + rbid, True)
             self.wait_message('OK')
             result = True
         return result
 
     # PAA開始
     def start_paa(self):
-        self.writeline('SKSTART')
+        self.writeline('SKSTART', True)
         self.wait_message('OK')
 
     # PaC開始
     def start_pac(self, ip6):
-        self.writeline('SKJOIN ' + ip6)
+        self.writeline('SKJOIN ' + ip6, True)
         self.wait_message('OK')
 
     # IP6アドレス
     def get_ip6(self, add):
-        self.writeline('SKLL64 ' + add)
+        self.writeline('SKLL64 ' + add, True)
         res = self.wait_message('UNKNOWN')
         return res['MESSAGE'][0]
 
@@ -113,13 +113,13 @@ class Y3Module(threading.Thread):
     def tcp_connect(self, ip6, rport, lport):
         rport_str = ' {:04X}'.format(rport)
         lport_str = ' {:04X}'.format(lport)
-        self.writeline('SKCONNECT ' + ip6 + rport_str + lport_str)
+        self.writeline('SKCONNECT ' + ip6 + rport_str + lport_str, True)
         res = self.wait_message('ETCP')
         return res
 
     # TCPコネクション停止
     def tcp_disconnect(self, handle):
-        self.writeline('SKCLOSE ' + str(handle))
+        self.writeline('SKCLOSE ' + str(handle), True)
         fin_flag = False
         while not fin_flag:
             res = self.wait_message('ETCP')
@@ -129,7 +129,7 @@ class Y3Module(threading.Thread):
     # TCPで送信
     def tcp_send(self, handle, message):
         length = len(message)
-        self.writeline('SKSEND ' + str(handle) + ' {:04X} {}'.format(length, message))
+        self.writeline('SKSEND ' + str(handle) + ' {:04X} {}'.format(length, message), False)
         res = self.wait_message('ETCP')
         return res['STATUS'] == 5
 
@@ -138,7 +138,7 @@ class Y3Module(threading.Thread):
         sec_str = ' 1' if security else ' 0'
         len_str = ' {:04X} '.format(len(message))
         port_str = ' {:04X}'.format(port)
-        self.writeline('SKSENDTO ' + str(handle) + ' ' + ip6 + port_str + sec_str + len_str + message)
+        self.writeline('SKSENDTO ' + str(handle) + ' ' + ip6 + port_str + sec_str + len_str + message, False)
         fin_flag = False
         while not fin_flag:
             res = self.wait_message('EVENT')
@@ -148,7 +148,7 @@ class Y3Module(threading.Thread):
 
     # EDスキャン
     def ed_scan(self):
-        self.writeline('SKSCAN 0 FFFFFFFF 4')
+        self.writeline('SKSCAN 0 FFFFFFFF 4', True)
         self.wait_message('EEDSCAN')
         fin_flag = False
         res = []
@@ -169,7 +169,7 @@ class Y3Module(threading.Thread):
 
     # アクティブスキャン
     def active_scan(self):
-        self.writeline('SKSCAN 2 FFFFFFFF 6')
+        self.writeline('SKSCAN 2 FFFFFFFF 6', True)
         scan_end = False
         channel_list = []
         channel = {}
@@ -229,8 +229,9 @@ class Y3Module(threading.Thread):
         self.uart_hdl.close()
 
     # 1行書き込み
-    def writeline(self, msg_str):
-        self.uart_hdl.write(bytes(msg_str + '\r\n', 'UTF-8'))
+    def writeline(self, msg_str, crlf):
+        lineend = '\r\n' if crlf == True else ''
+        self.uart_hdl.write(bytes(msg_str + lineend, 'UTF-8'))
 
     # 1行読み込み
     def readline(self):

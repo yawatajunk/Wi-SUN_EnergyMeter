@@ -26,7 +26,7 @@ def arg_parse():
     p = argparse.ArgumentParser()
     p.add_argument('-m', '--mode', help='select [c]ordinator or [d]evice', default='d', choices=['c', 'C', 'd', 'D'])
     p.add_argument('-i', '--id', help='pairing ID', type=str, default='PingPong')
-    p.add_argument('-t', '--transport', help='select [u]dp or [t]cp', default='t', choices=['u', 'U', 't', 'T'])
+    p.add_argument('-t', '--transport', help='select [u]dp or [t]cp', default='u', choices=['u', 'U', 't', 'T'])
     args = p.parse_args()
     return args
 
