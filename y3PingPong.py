@@ -47,8 +47,10 @@ def gpio_init():
 
 # LEDを点滅させるスレッド
 class LedThread(threading.Thread):
-    _trigger = False
-    _termFlag = False
+    def __init__(self):
+        super().__init__()
+        self._trigger = False
+        self._termFlag = False
 
     def run(self):
         while not self._termFlag:
@@ -77,78 +79,76 @@ class LedThread(threading.Thread):
 
 # Wi-Sunモジュールのリセット
 def y3reset():
-    gpio.output(Y3RESET_GPIO, gpio.LOW)  # assert reset
+    gpio.output(Y3RESET_GPIO, gpio.LOW)     # High -> low
     time.sleep(0.1)
-    gpio.output(Y3RESET_GPIO, gpio.HIGH)  # negate reset
-    time.sleep(1.0)  # wait for Wi-SUN module booting
+    gpio.output(Y3RESET_GPIO, gpio.HIGH)    # low -> High
+    time.sleep(1.0)
 
 
 # Wi-SUNモジュールをコーディネータとして起動
 def y3cordinator(args):
-    print('Wi-SUN Cordinator setup...')
+    sys.stderr.write('Wi-SUN Cordinator setup...\n')
 
     # EDスキャン
-    print('ED scan start...')
+    sys.stderr.write('ED scan start...\n')
     ed_res = y3.ed_scan()
-    print('    Channel is 0x{:02X}, LQI is {}.'.format(ed_res[0], ed_res[1]))
+    sys.stderr.write('    Channel is 0x{:02X}, LQI is {}.\n'.format(ed_res[0], ed_res[1]))
     y3.set_channel(ed_res[0])
 
     # ペアリングID
-    print('Setting pairing ID...')
+    sys.stderr.write('Setting pairing ID...\n')
     i = args.id
     if len(i) != 8:
-        print('    Error: \'{} \' is not allowed for pairing ID. Pairing ID must be 8 figures.'.format(i))
+        sys.stderr.write('    Error: \'{} \' is not allowed for pairing ID. Pairing ID must be 8 figures.\n'.format(i))
         return -1
-    print('    Pairing ID is \'{}\'.'.format(i))
+    sys.stderr.write('    Pairing ID is \'{}\'.\n'.format(i))
     y3.set_pairing_id(i)
 
     # アクティブスキャン
-    print('Active scan start...')
+    sys.stderr.write('Active scan start...\n')
     channel_list = y3.active_scan()
     pan_list = []
-    print('  {} cordinator(s) found.'.format(len(channel_list)))
+    sys.stderr.write('  {} cordinator(s) found.\n'.format(len(channel_list)))
     for ch in channel_list:
-        print('    [Ch.0x{}, Addr.{}, LQI.0x{}, PAN.0x{}]'.format(
+        sys.stderr.write('    [Ch.0x{}, Addr.{}, LQI.0x{}, PAN.0x{}]\n'.format(
                 ch['Channel'], ch['Addr'], ch['LQI'], ch['Pan ID']))
         pan_list.append(ch['Pan ID'])
 
     # PAN ID
-    print('Setting PAN ID...')
+    sys.stderr.write('Setting PAN ID...\n')
     pan = 0
     while True:
-        pan = random.randint(0, 0xfffe)     # 0xffff is not available
+        pan = random.randint(0, 0xfffe)     # 0xffffは使用禁止
         if not (pan in pan_list):
             break
-    print('    PAN ID is 0x{:04X}'.format(pan))
-    y3.set_pan_id(pan)    # set Pan ID
+    sys.stderr.write('    PAN ID is 0x{:04X}\n'.format(pan))
+    y3.set_pan_id(pan)
 
     # コーディネータ起動
     y3.set_accept_beacon(True)
-    print('Wi-SUN cordinator has successfully started.')
-    print('Type CTRL+C to exit.')
+    sys.stderr.write('Wi-SUN cordinator has successfully started.\n')
+    sys.stderr.write('Type CTRL+C to exit.\n')
 
     # ping pongループ
-    term_flag = False
     handle_list = []
-
-    while not term_flag:
+    while True:
         try:
             if y3.get_queue_size():
                 led.oneshot()
                 msg_list = y3.dequeue_message()
                 if msg_list['COMMAND'] == 'ERXUDP' or msg_list['COMMAND'] == 'ERXTCP':
-                    msg = y3.ascii_hex_to_str(msg_list['DATA']).replace('Ping', 'Pong')
-                    print(msg)
+                    msg = y3.decode(msg_list['DATA']).replace('Ping', 'Pong')
+                    sys.stderr.write(msg + '\n')
 
                     if msg_list['COMMAND'] == 'ERXUDP':
-                        y3.udp_send(1, msg_list['SENDER'], False, y3.Y3_UDP_ECHONET_PORT, msg)
+                        y3.udp_send(1, msg_list['SENDER'], False, y3.Y3_UDP_ECHONET_PORT, msg.encode())
                     else:
                         for hdl in handle_list:
                             if hdl['IPADDR'] == msg_list['SENDER']:
-                                y3.tcp_send(hdl['HANDLE'], msg)
+                                y3.tcp_send(hdl['HANDLE'], msg.encode())
                                 break
                             else:
-                                print('Error: TCP Connection.')
+                                sys.stderr.write('Error: TCP Connection.\n')
 
                 elif msg_list['COMMAND'] == 'ETCP':
                     if msg_list['STATUS'] == 1:
@@ -162,75 +162,75 @@ def y3cordinator(args):
                 time.sleep(0.01)
 
         except KeyboardInterrupt:
-            print('\n')
-            term_flag = True
+            sys.stderr.write('\n')
+            break
 
     return 0
 
 
 # Wi-Sunモジュールをデバイスとして起動
 def y3device(args):
-    print('Wi-SUN device startup...')
+    sys.stderr.write('Wi-SUN device startup...\n')
 
     # ペアリングID
-    print('Setting pairing ID...')
+    sys.stderr.write('Setting pairing ID...\n')
     i = args.id
     if len(i) != 8:
-        print('    Error: \'{} \' is not allowed for pairing ID. Pairing ID must be 8 figures.'.format(i))
+        sys.stderr.write('    Error: \'{} \' is not allowed for pairing ID. Pairing ID must be 8 figures.\n'.format(i))
         return -1
-    print('    Pairing ID is \'{}\'.'.format(i))
+    sys.stderr.write('    Pairing ID is \'{}\'.\n'.format(i))
     y3.set_pairing_id(i)
 
     # アクティブスキャン
-    print('Active scan start...')
+    sys.stderr.write('Active scan start...\n')
     channel_list = y3.active_scan()
     pan_list = []
-    print('  {} cordinator(s) found.'.format(len(channel_list)))
+    sys.stderr.write('  {} cordinator(s) found.\n'.format(len(channel_list)))
     if len(channel_list) == 0:
         return -1
 
     for ch in channel_list:
-        print('    [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]'.format(ch['Channel'], ch['Addr'],
+        sys.stderr.write('    [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]\n'.format(ch['Channel'], ch['Addr'],
               ch['LQI'], ch['Pan ID']))
         pan_list.append(ch['Pan ID'])
 
     # チャンネル設定
     channel = channel_list[0]
     y3.set_channel(channel['Channel'])
-    print('Set channel to 0x{:02X}'.format(channel['Channel']))
+    sys.stderr.write('Set channel to 0x{:02X}\n'.format(channel['Channel']))
 
     # コーディネータのIP6アドレス
     ip6 = y3.get_ip6(channel['Addr'])
-    print('Cordinator\'s IP6 address is \'{}\''.format(ip6))
+    sys.stderr.write('Cordinator\'s IP6 address is \'{}\'\n'.format(ip6))
 
     # PAN ID
     y3.set_pan_id(channel['Pan ID'])
-    print('Set PAN ID to 0x{:04X}'.format(channel['Pan ID']))
+    sys.stderr.write('Set PAN ID to 0x{:04X}\n'.format(channel['Pan ID']))
 
     # Ping Pong ループ(TCP)
     if args.transport.upper() == 'T':
-        tcp = y3.tcp_connect(ip6, y3.Y3_TCP_PORT, y3.Y3_TCP_PORT)
-        print('Open TCP Connection.')
-        print('    IP6 address : {}'.format(ip6))
-        print('    local port  : {}'.format(y3.Y3_TCP_PORT))
-        print('    remote port : {}'.format(y3.Y3_TCP_PORT))
-        print('    status      : {}'.format(tcp['STATUS']))
-        print('    handle no.  : {}'.format(tcp['HANDLE']))
+        tcp = y3.tcp_connect(ip6, y3.Y3_TCP_ECHONET_PORT, y3.Y3_TCP_ECHONET_PORT)
+        sys.stderr.write('Open TCP Connection.\n')
+        sys.stderr.write('    IP6 address : {}\n'.format(ip6))
+        sys.stderr.write('    local port  : {}\n'.format(y3.Y3_TCP_ECHONET_PORT))
+        sys.stderr.write('    remote port : {}\n'.format(y3.Y3_TCP_ECHONET_PORT))
+        sys.stderr.write('    status      : {}\n'.format(tcp['STATUS']))
+        sys.stderr.write('    handle no.  : {}\n'.format(tcp['HANDLE']))
 
         if tcp['STATUS'] != 1:
-            print('Error: TCP connection.')
+            sys.stderr.write('Error: TCP connection.\n')
             return -1
 
         cnt = 0
         tcp_close_flag = False
         term_flag = False
-        print('Wi-Sun device has successfully started.')
-        print('Type CTRL+C to exit.')
+        sys.stderr.write('Wi-Sun device has successfully started.\n')
+        sys.stderr.write('Type CTRL+C to exit.\n')
 
         while not term_flag:
             st_time = time.time()
             msg = 'Ping...({:04d}) '.format(cnt)
-            print(msg, end='')
+            sys.stderr.write(msg)
 
             cnt += 1
             if cnt == 10000:
@@ -238,9 +238,9 @@ def y3device(args):
 
             try:
                 pong_flag = False
-                result = y3.tcp_send(tcp['HANDLE'], msg)
+                result = y3.tcp_send(tcp['HANDLE'], msg.encode())
                 if not result:
-                    print('Error: TCP connection.')
+                    sys.stderr.write('Error: TCP connection.\n')
                     pong_flag = True
                     term_flag = True
 
@@ -250,78 +250,81 @@ def y3device(args):
 
                         if msg_list['COMMAND'] == 'ERXTCP':
                             pong_flag = True
-                            res = y3.ascii_hex_to_str(msg_list['DATA'])
+                            res = y3.decode(msg_list['DATA'])
                             if res.replace('Pong', 'Ping') == msg:
                                 end_time = time.time()
                                 lap_time = end_time - st_time
-                                print('{:.2f}'.format(lap_time))
+                                sys.stderr.write('{:.2f}\n'.format(lap_time))
                             else:
-                                print('NG!')
+                                sys.stderr.write('NG!\n')
 
                     else:
                         end_time = time.time()
                         lap_time = end_time - st_time
                         if lap_time > 3.0:        # time up
-                            print('Time up!')
+                            sys.stderr.write('Time up!\n')
                             break
                         time.sleep(0.01)
 
                     if tcp_close_flag:
-                        print('Close TCP connection...')
+                        sys.stderr.write('Close TCP connection...\n')
                         y3.tcp_disconnect(tcp['HANDLE'])
                         term_flag = True
                         break
 
             except KeyboardInterrupt:
-                print('\n')
+                sys.stderr.write('\n')
                 tcp_close_flag = True
 
     # Ping Pongループ (UDP)
     else:
         cnt = 0
-        print('Wi-Sun device has successfully started.')
-        print('Type CTRL+C to exit.')
+        sys.stderr.write('Wi-Sun device has successfully started.\n')
+        sys.stderr.write('Type CTRL+C to exit.\n')
+        time.sleep(0.5)
 
         while True:
             try:
                 st_time = time.time()
                 msg = 'Ping...({:04d}) '.format(cnt)
-                print(msg, end='')
+                sys.stderr.write(msg)
 
                 cnt += 1
                 if cnt == 10000:
                     cnt = 0
 
-                y3.udp_send(1, ip6, False, y3.Y3_UDP_ECHONET_PORT, msg)
+                y3.udp_send(1, ip6, False, y3.Y3_UDP_ECHONET_PORT, msg.encode())
 
                 while True:
                     if y3.get_queue_size():
                         msg_list = y3.dequeue_message()
                         if msg_list['COMMAND'] == 'ERXUDP':
-                            res = y3.ascii_hex_to_str(msg_list['DATA'])
+                            res = y3.decode(msg_list['DATA'])
                             if res.replace('Pong', 'Ping') == msg:
                                 end_time = time.time()
                                 lap_time = end_time - st_time
-                                print('{:.2f}'.format(lap_time))
+                                sys.stderr.write('{:.2f}\n'.format(lap_time))                                
                                 break
                             else:
-                                print('NG!')
+                                sys.stderr.write('NG!\n')
 
                     else:
                         end_time = time.time()
                         lap_time = end_time - st_time
                         if lap_time > 3.0:        # time up
-                            print('Time up!')
+                            sys.stderr.write('Time up!\n')
                             break
                         time.sleep(0.01)
 
             except KeyboardInterrupt:
-                print('\n')
+                sys.stderr.write('\n')
                 break
     return 0
 
 
 if __name__ == '__main__':  # ここからスタート
+    import sys
+
     args = arg_parse()
     gpio_init()
 
@@ -330,11 +333,12 @@ if __name__ == '__main__':  # ここからスタート
     led.oneshot()
 
     y3 = Y3Module()
-    y3.uart_open(dev='/dev/ttyAMA0', baud=115200, timeout=1)
+    if not y3.uart_open('/dev/ttyAMA0', 115200, 1):
+        sys.exit(1)
     y3.start()
-    print('Wi-SUN reset...')
+    sys.stderr.write('Wi-SUN reset...\n')
     y3reset()
-    y3.set_echoback(False)
+    y3.set_echoback_off()
     y3.set_opt(True)
 
     if args.mode.upper() == 'C':
@@ -343,13 +347,12 @@ if __name__ == '__main__':  # ここからスタート
         result = y3device(args)         # デバイス起動
 
     # 終了処理
-    print('Wi-Sun reset...')
+    sys.stderr.write('Wi-SUN reset...\n')
     y3reset()
     y3.terminate()
     y3.uart_close()
     led.terminate()
     gpio.cleanup()
 
-    print('Bye.')
-
-    exit(result)
+    sys.stderr.write('\nBye.\n')
+    sys.exit(0)
