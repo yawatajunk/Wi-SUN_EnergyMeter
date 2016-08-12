@@ -55,15 +55,15 @@ class LedThread(threading.Thread):
     def run(self):
         while not self._termFlag:
             if self._trigger:
-                self.on(True)
+                self.ledon(True)
                 time.sleep(0.1)
-                self.on(False)
+                self.ledon(False)
                 self._trigger = False
             else:
                 time.sleep(0.1)
 
     @staticmethod
-    def on(ctl):
+    def ledon(ctl):
         if ctl:
             gpio.output(LED_GPIO, gpio.HIGH)
         else:
@@ -320,12 +320,11 @@ def y3device(args):
                 sys.stderr.write('\n')
                 break
     return 0
-
-
+    
+    
 if __name__ == '__main__':  # ここからスタート
     import sys
 
-    args = arg_parse()
     gpio_init()
 
     led = LedThread()

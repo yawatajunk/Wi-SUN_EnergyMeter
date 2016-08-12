@@ -1,10 +1,11 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.2a  
+Branch 0.3a  
+
 
 ## Overview
 Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続し、スマートメーターと無線通信を行い、電力値等を取得するPythonスクリプトです。  
-現段階では、2組の（ラズパイ+モジュール）間でTCPまたはUDPで通信を行うだけで，スマートメータには接続しません。    
+
 
 ## Description
 ### スマートメーター，HEMS，ECHONET Lite
@@ -31,6 +32,7 @@ Wi-SUNは，920 MHz帯を使い，壁を通過しやすく建物の陰にも回�
 本プロジェクトの目的は，Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続し、スマートメーターと無線通信を行い、電力値等を取得することです。  
 なんちゃってHEMSコントローラだと考えてください。
 
+
 ## Requirement
 * Raspberry Pi
     * Raspbian JESSIE
@@ -38,6 +40,7 @@ Wi-SUNは，920 MHz帯を使い，壁を通過しやすく建物の陰にも回�
     * pyserial
     * RPi.GPIO
 * Wi-SUNモジュール BP35A1 (ROHM)
+
 
 ## Raspberry Pi Setup
 ### Circuit
@@ -48,7 +51,6 @@ Raspberry PiとBP35A1との接続は次のファイルを参照してくださ�
 * circuit.jpg: 回路図
 
 ### GPIO
-
 * GPIO18: BP35A1のリセットに接続します。  
 * GPIO4: LEDを接続します。省略できます。
 * GPIO14, GPIO15: BP35A1とのシリアル通信に使用します。これらのピンはデフォルトでシステムログインのために使用されているため次の手順で停止します。  
@@ -61,6 +63,7 @@ $ sudo systemctl stop serial-getty@ttyAMA0.service
 $ sudo systemctl disable serial-getty@ttyAMA0.service
 $ sudo reboot
 ```
+
 
 ## Install
 gitコマンドをインストールします。  
@@ -75,18 +78,23 @@ $ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
 $ git checkout origin/0.2a
 $ chmod +x y3PingPong.py
+$ chmod +x sem_com.py
 ```
 
-## Contents
-* y3module.py: BP35A1通信クラス  
-* y3PingPong.py: デモプログラム  
-* README.md: このファイル  
-* LICENCE.md: MITライセンス  
-* wiring.png: 実体配線図  
-* circuit.png: 回路図  
-* ec_energy_meter.py: スマート電力量計通信クラス（工事中）  
 
-## サンプルプログラム（y3PingPong）
+## Contents
+* circuit.png: 回路図  
+* echonet_lite.py: ECHONET Liteクラス  
+* LICENCE.md: MITライセンス  
+* README.md: このファイル  
+* sem_com.py: スマート電力量メーター通信プログラム
+* user_conf.py: スマート電力量メーターのID、パスワード等の設定ファイル
+* wiring.png: 実体配線図  
+* y3module.py: BP35A1通信クラス  
+* y3PingPong.py: サンプルプログラム  
+
+
+## サンプルプログラム（y3PingPong.py）
 2組の(BP35A1 + Raspberry Pi)で相互に通信を行うサンプルプログラムです。  
 
 ### Usage
@@ -115,9 +123,61 @@ optional arguments:
                         select [u]dp or [t]cp
 ```
 
+
+## スマート電力量メーター通信プログラム (sem_com.py)  
+スマート電力量メーター（スマメ）から瞬時電力を受信するプログラムです。  
+
+### Usage
+user_conf.pyを編集し、ID及びパスワードを設定します。  
+```
+SEM_ROUTEB_ID = '00000000000000000000000000000000'
+SEM_PASSWORD = 'XXXXXXXXXXXX'
+```
+
+次のコマンドでプログラムを起動します。  
+スマメとの距離が遠かったり電波の状態が良くないと、アクティブスキャンに時間がかかることがあります。  
+暫く待つと、瞬時電力が表示されます。  
+プログラムを停止するときは、`CTRL`と`c`を同時に押します。
+```
+$ ./sem_com.py
+Wi-SUN reset...
+(1/10) Active scan start with a duration of 6...
+(2/10) Active scan start with a duration of 6...
+(3/10) Active scan start with a duration of 6...
+Energy Meter: [Ch.0x37, Addr.0123456789ABCDEF, LQI.146, PAN.0x1234]
+Set channel to 0x37
+IP6 address is '0000:0000:0000:0000:0000:0000:0000:0000'
+Set PAN ID to 0x1234
+(1/10) PANA connection...
+Done.
+.
+.
+（略）
+.
+.
+[    8] 1680 W
+[    9] 1696 W
+[   10] 1696 W
+[   11] 1688 W
+[   12] 1696 W
+[   13] 1696 W
+[   14] 1696 W
+[   15] 1704 W
+[   16] 1712 W
+[   17] 1712 W
+[   18] 1704 W
+.
+.
+.
+.
+```
+
+
 ## History  
 0.1a: 初版  
 0.2a: 軽微な変更，README.mdを刷新  
+0.3a: スマメ通信プログラム追加
+
 
 ## Reference
 [Raspberry Pi](https://www.raspberrypi.org)  
