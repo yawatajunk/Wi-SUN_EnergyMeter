@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+//
+// ポート番号設定
+//
+var PORT_NO = '3610'
+
+
 /**
  * Module dependencies.
  */
@@ -8,11 +14,12 @@ var app = require('../app');
 var debug = require('debug')('sem_app:server');
 var http = require('http');
 
+
 /**
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || '3610');
+var port = normalizePort(process.env.PORT || PORT_NO);
 app.set('port', port);
 
 /**
@@ -155,5 +162,5 @@ sock_server.on('[sock]: error', function (err) {
 });
 
 sock_server.listen(sock_file, () => {
-  console.log('[sock]: server bound.');
+  console.log('[sock]: server bound');
 });

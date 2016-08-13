@@ -5,12 +5,14 @@
 //
 
 
-// Websocket address
-const WEBSOCKET_ADDRESS = 'raspi2.local:3610'
-
+//
+// Websocket
+//
+const href = window.location.href ;
 
 var pow_int;
-var socketio = io.connect(WEBSOCKET_ADDRESS);
+
+var socketio = io.connect(href);
 socketio.on("inst-power", function (data) {
 	var pow_str = data.value;
 	pow_int = Number(pow_str);
@@ -55,7 +57,9 @@ socketio.on("inst-power", function (data) {
 });	// end of socket.on()
 
 
+//
 // highcharts
+//
 $(function () {
 
 	$('#chart-container').highcharts({
@@ -82,7 +86,7 @@ $(function () {
 		},
 			
 		title: {
-			text: 'Instant Power'
+			text: 'Power Usage'
 		},
 
 		pane: {
