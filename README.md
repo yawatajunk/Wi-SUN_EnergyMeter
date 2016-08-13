@@ -1,10 +1,14 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.3a-dev  
+Branch 0.3a  
 
 
 ## Overview
 Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続してスマートメーターと無線通信を行い、消費電力を取得するPythonスクリプト。さらに、その取得データをリアルタイムで配信するWEBサーバです。
+
+## Screenshot
+![Wi-SUN_EnergyMeter Screenshot](http://blue-black.ink/wp-content/uploads/2016/08/0d0323de65984b069304f0c44ba1477a.png)
+
 
 
 ## Description
@@ -76,7 +80,7 @@ git及びnode.js v4.4.7 LTSがインストールされている必要です。
 ```
 $ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
-$ git checkout 0.3a-dev
+$ git checkout 0.3a
 $ cd sem_app
 $ npm install
 ```
@@ -194,18 +198,18 @@ WEBサーバのポート番号を設定します。
 //
 // ポート番号設定
 //
-var PORT_NO = '3610'./
+var PORT_NO = '3610';
 ```
 
 ### 起動方法
-WEBサーバを起動します。
+WEBサーバを起動します。  
 `$ ./sem_app/bin/www`
 
-スマートメーター通信プログラムを起動します。
+スマートメーター通信プログラムを起動します。  
 `$ ./sem_com.py`
 
 ### WEBブラウザで確認
-WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセスします。例えば次のとおりです。
+WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセスします。例えば次のとおりです。  
 `http://raspi0.local:3610/`
 
 
