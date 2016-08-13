@@ -1,0 +1,159 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('sem_app:server');
+var http = require('http');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3610');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
+
+
+//
+//
+// Websocketサーバ
+//
+//
+var inst_power = ''		// 瞬時電力
+var power_update = false;
+
+var io = require('socket.io').listen(server);
+io.on('connection', function(socket) {
+	console.log('[websocket]: Connected.');
+	
+  	socket.on("disconnect", function () {
+  		console.log('[websocket]: Disconnected.');
+  	});
+  	
+  	function powerUpdate() {
+  		if (power_update) {
+  			power_Update = false;
+  			socket.emit("inst-power", {value: inst_power});
+  		}
+  		setTimeout(powerUpdate, 100);
+  	}
+  	powerUpdate();
+});
+
+
+//
+//
+// スマート電力量メータ  ソケット通信
+//
+//
+var net = require('net');
+var fs = require('fs');
+
+var sock_file = '/tmp/sem.sock'	// UNIXソケットファイル
+
+// ソケットファイルの削除
+fs.unlink(sock_file, function (err) {
+	// The file doesn't exist.
+	// Do nothing.
+});
+
+// ソケットサーバ起動
+const sock_server = net.createServer(function (c) {
+	console.log('[sock]: client connected');
+  
+  	// 接続解除
+  	c.on('end', () => {
+    	console.log('[sock]: client disconnected');
+  	});
+  
+  	// データ受信
+  	c.on('data', (data) => {
+  		inst_power = data.toString()
+  		console.log("[sock]: Received: '" + inst_power + "'");
+  		power_update = true;
+  	});
+});
+
+sock_server.on('[sock]: error', function (err) {
+  throw err;
+});
+
+sock_server.listen(sock_file, () => {
+  console.log('[sock]: server bound.');
+});
