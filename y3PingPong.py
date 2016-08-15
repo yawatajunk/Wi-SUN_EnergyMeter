@@ -325,6 +325,7 @@ def y3device(args):
 if __name__ == '__main__':  # ここからスタート
     import sys
 
+    args = arg_parse()
     gpio_init()
 
     led = LedThread()
