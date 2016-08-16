@@ -9,4 +9,9 @@
 
 SEM_ROUTEB_ID = '00000000000000000000000000000000'
 SEM_PASSWORD = 'XXXXXXXXXXXX'
-SEM_DURATION = 6
+
+SEM_INTERVAL = 5    # 電力の取得頻度(秒)
+
+SEM_DURATION = 6    # アクティブススキャンのduration設定
+                    # 通常は変更の必要なし
+

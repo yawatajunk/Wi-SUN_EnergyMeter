@@ -52,7 +52,7 @@ class Y3Module(threading.Thread):
 
     # エコーバックを停止(リセット後，最初に1回だけコールする)
     def set_echoback_off(self):
-        self.write(b'SKSREG SFE 0\r\n', ['SKSREG', 'OK'])
+        self.write(b'SKSREG SFE 0\r\n', ['SKSREG', 'OK'], ignore = True)
 
     # Wi-Sunチャンネル
     def set_channel(self, ch):
@@ -107,7 +107,11 @@ class Y3Module(threading.Thread):
     def start_pac(self, ip6):
         res = self.write(b'SKJOIN ' + ip6.encode() + b'\r\n', [['EVENT 24', 'EVENT 25']], 
                          ignore = True, timeout = 10)
-        return True if res[0]['COMMAND'] == 'EVENT 25' else False
+        try:
+            result = True if res[0]['COMMAND'] == 'EVENT 25' else False
+        except:     # IndexErrorが発生するときのための暫定処理。要修正
+            result = False
+        return result
 
     # IP6アドレス
     def get_ip6(self, add):

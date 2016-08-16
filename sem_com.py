@@ -1,18 +1,19 @@
 #!/usr/bin/python3
 # coding: UTF-8
 
+import argparse
 import time
 import sys
 import threading
 import socket
-from pprint import pprint
+import json
+#from pprint import pprint
 
 
 import RPi.GPIO as gpio
 from y3module import Y3Module
 from echonet_lite import *
 import user_conf
-
 
 #import pdb     # debug
 #pdb_flag = False
@@ -22,6 +23,14 @@ Y3RESET_GPIO = 18   # Wi-SUNリセット用GPIO
 LED_GPIO = 4        # LED用GPIO
 
 SOCK_FILE = '/tmp/sem.sock'     # UNIXソケット
+
+
+# コマンドライン引数
+def arg_parse():
+    p = argparse.ArgumentParser()
+    p.add_argument('-o', '--output', help='log file name', default='/dev/null')
+    args = p.parse_args()
+    return args
 
 
 # GPIO初期化
@@ -73,9 +82,9 @@ class LedThread(threading.Thread):
 # Wi-Sunモジュールのリセット
 def y3reset():
     gpio.output(Y3RESET_GPIO, gpio.LOW)    # high -> low -> high
-    time.sleep(0.1)
+    time.sleep(0.5)
     gpio.output(Y3RESET_GPIO, gpio.HIGH)
-    time.sleep(1.0)
+    time.sleep(2.0)
 
 
 # Y3Module()のサブクラス
@@ -99,10 +108,10 @@ class Y3ModuleSub(Y3Module):
                 if msg_list['COMMAND'] == 'ERXUDP' and msg_list['LPORT'] == self.Y3_UDP_PANA_PORT:
                     self.msg_list_pana_queue.append(msg_list)
                
-                # サマーとメーターが自発的に発するプロパティ通知
+                # スマートメーターが自発的に発するプロパティ通知
                 if msg_list['COMMAND'] == 'ERXUDP' and msg_list['DATA'][0:4] == self.EHD \
-                   and msg_list['DATA'][20:22] == self.ECV_INF:
-                        sem_inf_list.append(msg_list)
+                            and msg_list['DATA'][20:22] == self.ECV_INF:
+                    sem_inf_list.append(msg_list)
 
                 elif self.search['search_words']:     # サーチ中である
                     # サーチワードを受信した。
@@ -174,6 +183,8 @@ if __name__ == '__main__':
     sem_inf_list = []       # スマートメータのプロパティ通知用
     tid_counter = 0
 
+    args = arg_parse()
+    
     gpio_init()
 
     led = LedThread()
@@ -248,33 +259,49 @@ if __name__ == '__main__':
     if sem_exist:
         sem = EchonetLiteSmartEnergyMeter()
         
-        pprint(sem_get_getres('get_pty_map'))        
-        pprint(sem_get_getres('set_pty_map'))        
-        pprint(sem_get_getres('chg_pty_map'))
+        # 参考までに取得（ECHONET Liteを参照すること）
+        #pprint(sem_get_getres('get_pty_map'))   # Get プロパティマップ
+        #pprint(sem_get_getres('set_pty_map'))   # Set プロパティマップ
+        #pprint(sem_get_getres('chg_pty_map'))   # 状態変化 プロパティマップ
+        #print('Operation status: ', sem_get_getres('operation_status'))     # 動作状態
+        #print('     Coefficient: ', sem_get_getres('epc_coefficient'))      # 係数
+        #print('           Digit: ', sem_get_getres('digits'))               # 有効桁数
+        #print('  Unit of energy: ', sem_get_getres('unit_amount_energy'))   # 単位
 
-        print('Operation status: ', sem_get_getres('operation_status'))
-        print('     Coefficient: ', sem_get_getres('epc_coefficient'))
-        print('           Digit: ', sem_get_getres('digits'))
-        print('  Unit of energy: ', sem_get_getres('unit_amount_energy'))
-
+        start = time.time()-1000  # 初期値を1000s前に設定
         while True:
             try:
-                start = time.time()
+                now = time.time()
+                while True:
+                    if (time.time() - start) >= user_conf.SEM_INTERVAL:
+                        start = time.time()
+                        break
+                    else:
+                        time.sleep(0.1)
+                                     
                 sem_get('instant_power')
                 
                 while True:
                     if y3.get_queue_size():
                         msg_list = y3.dequeue_message()
-                        size = y3.get_queue_size()
                         if msg_list['COMMAND'] == 'ERXUDP':
                             led.oneshot()
                             data = msg_list['DATA']
                             watt_int = int.from_bytes(bytes.fromhex(msg_list['DATA'][28:36]), 'big')
+                            rcd_time = round(time.time())
                             sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
+                            
+                            try:
+                                f = open(args.output, 'a')
+                                f.write('{},{}\n'.format(rcd_time, watt_int));
+                                f.close()
+                            except:
+                                sys.stderr.write('[Error]: can not write to file.\n')
+                            
                             if (sock):
-                                watt_bytes = str(watt_int).encode('utf-8')
+                                sock_data = json.dumps({'time': rcd_time, 'power': watt_int}).encode('utf-8');
                                 try:
-                                    sock.send(watt_bytes)
+                                    sock.send(sock_data)
                                 except:
                                     sys.stderr.write('[Error]: Broken socket.\n')
                             break
@@ -282,12 +309,11 @@ if __name__ == '__main__':
                             sys.stderr.write('[Error]: Unknown data received.\n{}'.format(msg_list))
 
                     else:
-                        # debug                        
-                        while sem_inf_list:
-                            pprint(sem_inf_list[0])
+                        while sem_inf_list:         # debug
+                            #pprint(sem_inf_list[0]) # スマートメーターからInf等をキャッチしたとき
                             sem_inf_list.pop(0)
                         
-                        if time.time() - start > 20:    # タイムアウト 20s
+                        if time.time() - start > 20:    # GetRes最大待ち時間: 20s
                             sys.stderr.write('[Error]: Time out.\n')
                             break
                         time.sleep(0.1)

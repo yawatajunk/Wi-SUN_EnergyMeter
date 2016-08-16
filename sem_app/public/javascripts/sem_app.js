@@ -11,11 +11,14 @@
 const href = window.location.href ;
 
 var pow_int;
+var rcd_time;
 
 var socketio = io.connect(href);
 socketio.on("inst-power", function (data) {
-	var pow_str = data.value;
-	pow_int = Number(pow_str);
+    var d = JSON.parse(data);
+
+	rcd_time = Number(d.time);
+	pow_int = Number(d.power);
 
 	if (pow_int < 2000) {
 		$(function () {
@@ -43,12 +46,12 @@ socketio.on("inst-power", function (data) {
 	}
 
 	$(function () {
-		$("#inst-power").text(pow_str + ' W')
+		$("#inst-power").text(String(pow_int) + ' W');
 	});
 	
 	var gain_int = Math.round(pow_int / 6000.0 * 100.0);	// 6000 W -> 100 %
 	if (gain_int > 100.0) {
-		gina_int = 100.0;
+		gina_int = 100;
 	} 
 	var gain_str = String(gain_int) + '%';
 	$(function () {
@@ -58,7 +61,7 @@ socketio.on("inst-power", function (data) {
 
 
 //
-// highcharts
+// highcharts: power useage
 //
 $(function () {
 
@@ -76,7 +79,7 @@ $(function () {
 					var point = this.series[0].points[0]
 					setInterval(function () {
 						point.update(pow_int);
-					}, 500);
+					}, 1000);
 				}
 			}
 		},
@@ -169,3 +172,77 @@ $(function () {
 		}]				
 	});
 });
+
+
+//
+// highcharts: power history
+//
+$(function () {
+
+    Highcharts.setOptions({
+        global : {
+            useUTC : false
+        }
+    });
+
+    // Create the chart
+    $('#history-container').highcharts('StockChart', {
+        chart : {
+            events : {
+                load : function () {
+
+                    // set up the updating of the chart each second
+                    var series = this.series[0];
+                    setInterval(function () {
+                        var x = (new Date()).getTime(); // current time
+                        var y = pow_int;
+                        series.addPoint([x, y], true, true);
+                    }, 1000);
+                }
+            } 
+        },
+
+        rangeSelector: {
+            buttons: [{
+                count: 10,
+                type: 'minute',
+                text: '10 m'
+            }, {
+                count: 60,
+                type: 'minute',
+                text: '1 h'
+            }, {
+                type: 'all',
+                text: 'All'
+            }],
+            inputEnabled: false,
+            selected: 0
+        },
+
+        title : {
+            //text : 'Live random data'
+            text : 'History'
+        },
+
+        exporting: {
+            enabled: false
+        },
+
+        series : [{
+            name : 'Random data',
+            data : (function () {
+                // generate an array of random data
+                var data = [], time = (new Date()).getTime(), i;
+
+                for (i = -999; i <= 0; i += 1) {
+                    data.push([
+                        time + i * 1000,
+                        0
+                    ]);
+                }
+                return data;
+            }())
+        }]    });
+});
+
+
