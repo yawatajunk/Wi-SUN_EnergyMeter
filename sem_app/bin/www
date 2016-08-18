@@ -102,7 +102,8 @@ function onListening() {
 // Websocketサーバ
 //
 //
-var inst_power = ''		// 瞬時電力
+var inst_power; // 瞬時電力
+var rcd_time;   // 記録時間(UNIXタイム)
 var power_update = false;
 
 var io = require('socket.io').listen(server);
@@ -116,7 +117,7 @@ io.on('connection', function(socket) {
   	function powerUpdate() {
   		if (power_update) {
   			power_Update = false;
-  			socket.emit("inst-power", {value: inst_power});
+  			socket.emit("inst-power", JSON.stringify({'time': rcd_time, 'power': inst_power}));
   		}
   		setTimeout(powerUpdate, 100);
   	}
@@ -151,7 +152,9 @@ const sock_server = net.createServer(function (c) {
   
   	// データ受信
   	c.on('data', (data) => {
-  		inst_power = data.toString()
+  		var d = JSON.parse(data);
+  		rcd_time = d.time;
+  		inst_power = d.power;
   		console.log("[sock]: Received: '" + inst_power + "'");
   		power_update = true;
   	});

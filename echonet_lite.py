@@ -8,7 +8,7 @@
 # Copyright(C) 2016 pi@blue-black.ink
 #
 
-from pprint import pprint
+#from pprint import pprint
 
 
 # ECHONET Lite クラス
