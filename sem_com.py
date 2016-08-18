@@ -241,13 +241,20 @@ def file_cat(file_a, file_b):
         return True
     except:
         return False
+        
+        
+# debug: エラーを記録する
+def debug_err_record(err_file, errmsg, data):
+    js = json.dumps([errmsg, round(time.time()), data]) + '\n'
+    f = open(err_file, 'a')
+    f.write(js)
+    f.close()
 
 
 # start
 if __name__ == '__main__':
     logdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), POW_DAY_LOG_DIR)
     err_file = os.path.join(logdir, ERR_LOG_FILE)
-    print(err_file)
     
     saved_dt = datetime.datetime.now()    # 現在日時を保存
 
@@ -364,26 +371,24 @@ if __name__ == '__main__':
                             
                             if parsed_data:
                                 if parsed_data['tid'] != tid_counter:
-                                    sys.stderr.write('[Error]: ECHONET Lite TID mismatch\n')
-                                    f = open(err_file, 'a')
-                                    f.write('[Error]: ECHONET Lite TID mismatch: {},{}\n'.format(round(time.time()), msg_list['DATA']))
-                                    f.close()
+                                    errmsg = '[Error]: ECHONET Lite TID mismatch\n'
+                                    sys.stderr.write(errmsg)
+                                    debug_err_record(err_file, errmsg, msg_list);
                                     
                                 else:
                                     watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
-                                    #watt_int = int.from_bytes(bytes.fromhex(msg_list['DATA'][28:36]), 'big')
-                                    rcd_time = round(time.time())
+                                    rcd_time = time.time()      # rcd_time[s]
                                     new_dt = datetime.datetime.fromtimestamp(rcd_time)
 
-                                    # ログファイルメンテ
+                                    # ログファイルメンテナンス
                                     pow_logfile_maintainance(saved_dt, new_dt, logdir)
                                     saved_dt = new_dt
 
                                     sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
                             
                                     try:    # 一時ログファイルに書き込み
-                                        f = open(TMP_LOG_FILE, 'a')
-                                        f.write('{},{}\n'.format(rcd_time, watt_int));
+                                        f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
+                                        f.write('{},{}\n'.format(round(rcd_time * 1000), watt_int));
                                         f.close()
                                     except:
                                         sys.stderr.write('[Error]: can not write to file.\n')
@@ -397,17 +402,14 @@ if __name__ == '__main__':
                                     break
                             
                             else:   # 電文が壊れている
-                                sys.stderr.write('[Error]: ECHONET Lite frame error\n');
-                                f = open(err_file, 'a')
-                                f.write('[Error]: ECHONET Lite frame error: {},{}\n'.format(round(time.time()), msg_list['DATA']))
-                                f.close()
+                                errmsg = '[Error]: ECHONET Lite frame error\n'
+                                sys.stderr.write(errmsg);
+                                debug_err_record(err_file, errmsg, msg_list);
                             
                         else:   # 電文が壊れている???
-                            sys.stderr.write('[Error]: Unknown data received.\n')
-                            f = open(err_file, 'a')
-                            f.write('[Error]: Unknown data received: {},{}\n'.format(round(time.time()), msg_list['DATA']))
-                            f.close()
-
+                            errmsg = '[Error]: Unknown data received.\n'
+                            sys.stderr.write(errmsg)
+                            debug_err_record(err_file, errmsg, msg_list);
 
                     else:   # GetRes待ち
                         while sem_inf_list:
