@@ -1,5 +1,8 @@
 $(function () {
-$.get('sem_log/pow_day_0.csv', function(csv) {
+    data = $.get('/sem_log/data.json');
+    
+    $(function (data) {
+        // Create the chart
         $('#container').highcharts('StockChart', {
 
 
@@ -12,17 +15,13 @@ $.get('sem_log/pow_day_0.csv', function(csv) {
             },
 
             series : [{
-                name : 'power',
-                data : csv,
-                marker : {
-                    enabled : true,
-                    radius : 3
-                },
-                shadow : true,
-                tooltip : {
-                    valueDecimals : 2
+                name : 'AAPL',
+                data : data,
+                tooltip: {
+                    valueDecimals: 2
                 }
             }]
         });
     });
 });
+

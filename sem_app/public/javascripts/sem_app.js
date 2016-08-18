@@ -66,7 +66,6 @@ socketio.on("inst-power", function (data) {
 $(function () {
 
 	$('#chart-container').highcharts({
-
 		chart: {
 			type: 'gauge',
 			plotBackgroundColor: null,
@@ -172,77 +171,3 @@ $(function () {
 		}]				
 	});
 });
-
-
-//
-// highcharts: power history
-//
-$(function () {
-
-    Highcharts.setOptions({
-        global : {
-            useUTC : false
-        }
-    });
-
-    // Create the chart
-    $('#history-container').highcharts('StockChart', {
-        chart : {
-            events : {
-                load : function () {
-
-                    // set up the updating of the chart each second
-                    var series = this.series[0];
-                    setInterval(function () {
-                        var x = (new Date()).getTime(); // current time
-                        var y = pow_int;
-                        series.addPoint([x, y], true, true);
-                    }, 1000);
-                }
-            } 
-        },
-
-        rangeSelector: {
-            buttons: [{
-                count: 10,
-                type: 'minute',
-                text: '10 m'
-            }, {
-                count: 60,
-                type: 'minute',
-                text: '1 h'
-            }, {
-                type: 'all',
-                text: 'All'
-            }],
-            inputEnabled: false,
-            selected: 0
-        },
-
-        title : {
-            //text : 'Live random data'
-            text : 'History'
-        },
-
-        exporting: {
-            enabled: false
-        },
-
-        series : [{
-            name : 'Random data',
-            data : (function () {
-                // generate an array of random data
-                var data = [], time = (new Date()).getTime(), i;
-
-                for (i = -999; i <= 0; i += 1) {
-                    data.push([
-                        time + i * 1000,
-                        0
-                    ]);
-                }
-                return data;
-            }())
-        }]    });
-});
-
-
