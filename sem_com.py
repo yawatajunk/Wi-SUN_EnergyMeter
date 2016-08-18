@@ -27,6 +27,7 @@ LED_GPIO = 4        # LED用GPIO
 
 SOCK_FILE = '/tmp/sem.sock'     # UNIXソケット
 TMP_LOG_FILE = '/tmp/sem.csv'   # 一時ログファイル名
+ERR_LOG_FILE = 'sem_err.log'    # エラー記録ファイル
 
 POW_DAY_LOG_DIR = 'sem_app/public/sem_log'  # ログ用ディレクトリ, 本スクリプトからの相対パス
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
@@ -245,7 +246,8 @@ def file_cat(file_a, file_b):
 # start
 if __name__ == '__main__':
     logdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), POW_DAY_LOG_DIR)
-    print(logdir)
+    err_file = os.path.join(logdir, ERR_LOG_FILE)
+    print(err_file)
     
     saved_dt = datetime.datetime.now()    # 現在日時を保存
 
@@ -363,6 +365,10 @@ if __name__ == '__main__':
                             if parsed_data:
                                 if parsed_data['tid'] != tid_counter:
                                     sys.stderr.write('[Error]: ECHONET Lite TID mismatch\n')
+                                    f = open(err_file, 'a')
+                                    f.write('[Error]: ECHONET Lite TID mismatch: {},{}\n'.format(round(time.time()), msg_list['DATA']))
+                                    f.close()
+                                    
                                 else:
                                     watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
                                     #watt_int = int.from_bytes(bytes.fromhex(msg_list['DATA'][28:36]), 'big')
@@ -392,9 +398,16 @@ if __name__ == '__main__':
                             
                             else:   # 電文が壊れている
                                 sys.stderr.write('[Error]: ECHONET Lite frame error\n');
+                                f = open(err_file, 'a')
+                                f.write('[Error]: ECHONET Lite frame error: {},{}\n'.format(round(time.time()), msg_list['DATA']))
+                                f.close()
                             
                         else:   # 電文が壊れている???
-                            sys.stderr.write('[Error]: Unknown data received.\n{}'.format(msg_list))
+                            sys.stderr.write('[Error]: Unknown data received.\n')
+                            f = open(err_file, 'a')
+                            f.write('[Error]: Unknown data received: {},{}\n'.format(round(time.time()), msg_list['DATA']))
+                            f.close()
+
 
                     else:   # GetRes待ち
                         while sem_inf_list:
@@ -426,7 +439,7 @@ if __name__ == '__main__':
     led.terminate()
     gpio.cleanup()
     
-    if os.path.exist(TMP_LOG_FILE):
+    if os.path.exists(TMP_LOG_FILE):
         os.remove(TMP_LOG_FILE)
 
     sys.stderr.write('Bye.\n')
