@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 # coding: UTF-8
 
-import argparse
 import time
+import datetime
+import os
+import shutil
+import glob
 import sys
 import threading
 import socket
 import json
-#from pprint import pprint
-
+from pprint import pprint
 
 import RPi.GPIO as gpio
 from y3module import Y3Module
@@ -19,18 +21,16 @@ import user_conf
 #pdb_flag = False
 
 
+# 定数定義
 Y3RESET_GPIO = 18   # Wi-SUNリセット用GPIO
 LED_GPIO = 4        # LED用GPIO
 
 SOCK_FILE = '/tmp/sem.sock'     # UNIXソケット
+TMP_LOG_FILE = '/tmp/sem.csv'   # 一時ログファイル名
 
-
-# コマンドライン引数
-def arg_parse():
-    p = argparse.ArgumentParser()
-    p.add_argument('-o', '--output', help='log file name', default='/dev/null')
-    args = p.parse_args()
-    return args
+POW_DAY_LOG_DIR = 'sem_app/public/sem_log'  # ログ用ディレクトリ, 本スクリプトからの相対パス
+POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
+POW_DAY_LOG_FMT = '%Y%m%d'      #        日時フォーマット
 
 
 # GPIO初期化
@@ -115,7 +115,7 @@ class Y3ModuleSub(Y3Module):
 
                 elif self.search['search_words']:     # サーチ中である
                     # サーチワードを受信した。
-                    search_words = self.search['search_words'][0]                    
+                    search_words = self.search['search_words'][0]
                     if isinstance(search_words, list):
                         for word in search_words:
                             if msg_list['COMMAND'].startswith(word):
@@ -178,13 +178,85 @@ def sem_get(epc):
         res = y3.udp_send(1, ip6, True, y3.Y3_UDP_ECHONET_PORT, frame)
 
 
+# 電力ログファイル初期設定
+def pow_logfile_init(dt, logdir):    
+    # 一時ファイル初期化
+    f = open(TMP_LOG_FILE , 'w')
+    f.close()
+
+    if os.path.isdir(logdir) and os.access(logdir, os.W_OK):    # ログ用ディレクトリ確認
+        os.chdir(logdir)
+        
+        day_file_list = []        
+        for i in range(10):     # 10日分の電力ログ
+            dt_str = (dt - datetime.timedelta(days = i)).strftime(POW_DAY_LOG_FMT)
+            filename = POW_DAY_LOG＿HEAD + dt_str + '.csv'
+            day_file_list.append(filename)
+
+            if not os.path.exists(filename):    # 電力ログが存在しなければ作成する
+                fp = open(filename, 'w')
+                fp.write('timestamp,power\n')
+                fp.close()
+
+        file_list = glob.glob(POW_DAY_LOG_HEAD + '*.csv')   # 電力ログ検索
+        for f in file_list:
+            if f in day_file_list:
+                continue
+            else:
+                os.remove(f)    # 古い電力ログとリンクファイルを削除
+
+        for i in range(10):     # 電力ログへのシンボリックリンクを作成
+            link_file = POW_DAY_LOG_HEAD + str(i) + '.csv'
+            os.system('ln -s ' + day_file_list[i] + ' ' + link_file)
+            
+        return True
+
+    else:   # エラー（ディレクトリが存在しない、書き込み不可）
+        return False
+
+
+# 電力ログファイル更新
+def pow_logfile_maintainance(last_dt, new_dt, logdir):
+    os.chdir(logdir)
+    
+    # 電力ログ更新
+    if last_dt.minute != new_dt.minute and new_dt.minute % 10 == 0: # 10分毎
+        today_file = POW_DAY_LOG_HEAD + last_dt.strftime(POW_DAY_LOG_FMT) + '.csv'
+        file_cat(today_file, TMP_LOG_FILE)
+        os.remove(TMP_LOG_FILE)         # 一時ログファイルを削除
+        
+        if last_dt.day != new_dt.day:   # 日付変更
+            pow_logfile_init(new_dt, logdir)    # 電力ログ初期化
+
+
+# ファイルを連結する
+def file_cat(file_a, file_b):
+    try:
+        fp_a = open(file_a, 'ab')
+        fp_b = open(file_b, 'rb')
+        fp_a.write(fp_b.read())
+        fp_a.close()
+        fp_b.close()
+        return True
+    except:
+        return False
+
+
 # start
 if __name__ == '__main__':
+    logdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), POW_DAY_LOG_DIR)
+    print(logdir)
+    
+    saved_dt = datetime.datetime.now()    # 現在日時を保存
+
     sem_inf_list = []       # スマートメータのプロパティ通知用
     tid_counter = 0
 
-    args = arg_parse()
-    
+    result = pow_logfile_init(saved_dt, logdir)    # ログファイル初期化
+    if not result:
+        sys.stderr.write('[Error]: log file error\n')
+        sys.exit(-1)
+
     gpio_init()
 
     led = LedThread()
@@ -286,31 +358,47 @@ if __name__ == '__main__':
                         msg_list = y3.dequeue_message()
                         if msg_list['COMMAND'] == 'ERXUDP':
                             led.oneshot()
-                            data = msg_list['DATA']
-                            watt_int = int.from_bytes(bytes.fromhex(msg_list['DATA'][28:36]), 'big')
-                            rcd_time = round(time.time())
-                            sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
+                            parsed_data = sem.parse_frame(msg_list['DATA'])
                             
-                            try:
-                                f = open(args.output, 'a')
-                                f.write('{},{}\n'.format(rcd_time, watt_int));
-                                f.close()
-                            except:
-                                sys.stderr.write('[Error]: can not write to file.\n')
+                            if parsed_data:
+                                if parsed_data['tid'] != tid_counter:
+                                    sys.stderr.write('[Error]: ECHONET Lite TID mismatch\n')
+                                else:
+                                    watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
+                                    #watt_int = int.from_bytes(bytes.fromhex(msg_list['DATA'][28:36]), 'big')
+                                    rcd_time = round(time.time())
+                                    new_dt = datetime.datetime.fromtimestamp(rcd_time)
+
+                                    # ログファイルメンテ
+                                    pow_logfile_maintainance(saved_dt, new_dt, logdir)
+                                    saved_dt = new_dt
+
+                                    sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
                             
-                            if (sock):
-                                sock_data = json.dumps({'time': rcd_time, 'power': watt_int}).encode('utf-8');
-                                try:
-                                    sock.send(sock_data)
-                                except:
-                                    sys.stderr.write('[Error]: Broken socket.\n')
-                            break
-                        else:
+                                    try:    # 一時ログファイルに書き込み
+                                        f = open(TMP_LOG_FILE, 'a')
+                                        f.write('{},{}\n'.format(rcd_time, watt_int));
+                                        f.close()
+                                    except:
+                                        sys.stderr.write('[Error]: can not write to file.\n')
+                            
+                                    if (sock):  # UNIXドメインソケットで送信
+                                        sock_data = json.dumps({'time': rcd_time, 'power': watt_int}).encode('utf-8');
+                                        try:
+                                            sock.send(sock_data)
+                                        except:
+                                            sys.stderr.write('[Error]: Broken socket.\n')
+                                    break
+                            
+                            else:   # 電文が壊れている
+                                sys.stderr.write('[Error]: ECHONET Lite frame error\n');
+                            
+                        else:   # 電文が壊れている???
                             sys.stderr.write('[Error]: Unknown data received.\n{}'.format(msg_list))
 
-                    else:
-                        while sem_inf_list:         # debug
-                            #pprint(sem_inf_list[0]) # スマートメーターからInf等をキャッチしたとき
+                    else:   # GetRes待ち
+                        while sem_inf_list:
+                            pprint(sem_inf_list[0]) # Inf(30分計量値等)をキャッチしたときに表示する
                             sem_inf_list.pop(0)
                         
                         if time.time() - start > 20:    # GetRes最大待ち時間: 20s
@@ -337,6 +425,9 @@ if __name__ == '__main__':
     y3.uart_close()
     led.terminate()
     gpio.cleanup()
+    
+    if os.path.exist(TMP_LOG_FILE):
+        os.remove(TMP_LOG_FILE)
 
     sys.stderr.write('Bye.\n')
     sys.exit(0)
