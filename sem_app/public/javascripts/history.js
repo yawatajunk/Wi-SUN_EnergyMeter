@@ -1,5 +1,13 @@
 $(function () {
+<<<<<<< HEAD
     $.getJSON('/logs/pow_days.json', function (data) {
+=======
+    data = $.get('/sem_log/data.json');
+    
+    $(function (data) {
+        // Create the chart
+        $('#container').highcharts('StockChart', {
+>>>>>>> b53255d34bc51b351d58b4d6374a4ad402dcd64d
 
         Highcharts.setOptions({
             global : {
@@ -47,6 +55,7 @@ $(function () {
             },
             
             series : [{
+<<<<<<< HEAD
                 type : 'line',
                 color: '#F06A40',
                 name : 'Power[W]',
@@ -60,6 +69,15 @@ $(function () {
                 min: 0,
                 max: 6000
             }
+=======
+                name : 'AAPL',
+                data : data,
+                tooltip: {
+                    valueDecimals: 2
+                }
+            }]
+>>>>>>> b53255d34bc51b351d58b4d6374a4ad402dcd64d
         });
     });
 });
+

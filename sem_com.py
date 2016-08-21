@@ -223,6 +223,7 @@ def file_cat(file_a, file_b):
     except:
         return False
         
+<<<<<<< HEAD
 
 # CSVファイルをJSONファイルに変換する
 def csv2json(csvfiles, jsonfile):
@@ -248,6 +249,8 @@ def csv2json(csvfiles, jsonfile):
         
     return True
 
+=======
+>>>>>>> b53255d34bc51b351d58b4d6374a4ad402dcd64d
         
 # debug: エラーを記録する
 def debug_err_record(err_file, errmsg, data):

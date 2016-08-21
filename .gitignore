@@ -1,5 +1,11 @@
 __pycache__/
 sem_app/node_modules/
+<<<<<<< HEAD
 sem_app/public/logs/
 user_conf_bak.py
 
+=======
+sem_app/public/sem_log/
+user_conf.py
+user_conf_bak.py
+>>>>>>> b53255d34bc51b351d58b4d6374a4ad402dcd64d
