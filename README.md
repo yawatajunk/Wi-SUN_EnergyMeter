@@ -1,6 +1,6 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.3a  
+Branch 0.5a  
 
 
 ## Overview
@@ -91,12 +91,12 @@ $ npm install
 * echonet_lite.py: ECHONET Liteクラス  
 * LICENCE.md: MITライセンス  
 * README.md: このファイル  
+* sem_appフォルダ: Node.jsによるWEBサーバ関連  
 * sem_com.py: スマート電力量メーター通信プログラム
 * user_conf.py: スマート電力量メーターのID、パスワード等の設定ファイル
 * wiring.png: 実体配線図  
 * y3module.py: BP35A1通信クラス  
 * y3PingPong.py: サンプルプログラム  
-* sem_appフォルダ: Node.jsによるWEBサーバ関連
 
 
 ## サンプルプログラム（y3PingPong.py）
@@ -134,13 +134,17 @@ optional arguments:
 
 ### Usage
 user_conf.pyを編集し、スマートメーターのID及びパスワードを設定します。  
+SEMM_INTERVALには瞬時電力を取得する時間間隔[秒]を設定します。なお、スマートメーターから瞬時電力を取得するのに約3秒の時間が必要なため、それ以上の頻度でデータを取得することは出来ません。0を設定すれば最大頻度でデータを取得することができます。  
+SEM_DURATIONは、アクティブスキャンのとき、チャンネルごとのスキャン時間を設定するものです。数値が1増すごとにスキャン時間が2倍になります。闇雲に大きい値を設定するとスキャン時間が大幅に長くなりますのでご注意ください。アクティブスキャンでスマートメーターが見つからないときなど、+1でお試しください。
 ```
 SEM_ROUTEB_ID = '00000000000000000000000000000000'
 SEM_PASSWORD = 'XXXXXXXXXXXX'
+SEM_INTERVAL = 3
+SEM_DURATION = 6
 ```
 
 次のコマンドでプログラムを起動します。  
-スマメとの距離が遠かったり電波の状態が良くないと、アクティブスキャンに時間がかかることがあります。  
+スマメとの距離が遠かったり電波の状態が良くないと、アクティブスキャンをリトライするため時間がかかることがあります。  
 暫く待つと、瞬時電力が表示されます。  
 プログラムを停止するときは、`CTRL`と`c`を同時に押します。
 ```
@@ -179,18 +183,14 @@ Done.
 
 
 ## 消費電力を配信するWEBサーバ
-Node.js + Express + socket.ioでWEBサーバを構築しました。
-また、画面デザインの大枠作成にはJetstrapを、グラフの表示にはHighchartsを使っています。  
+Node.js + ExpressでWEBサーバを構築しました。
+また、画面デザインの大枠作成にはJetstrapを、グラフの表示にはHighcharts, Highstockを使っています。  
 プロジェクトをインストールした、起点となるディレクトリに移動します。
 `$ cd /path/to/Wi-SUN_EnergyMeter`
 
 ### 設定ファイル
 ####「./user_conf.py」####
-スマートメーターのID及びパスワードを設定します。
-```
-SEM_ROUTEB_ID = '00000000000000000000000000000000'
-SEM_PASSWORD = 'XXXXXXXXXXXX'
-```
+先述のとおり、スマートメータのIDとパスワードを設定します。  
 
 ####「./sem_app/bin/www」####
 WEBサーバのポート番号を設定します。
@@ -216,7 +216,8 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 ## History  
 0.1a: 初版  
 0.2a: 軽微な変更，README.mdを刷新  
-0.3a: スマメ通信プログラム＆配信WEBサーバ追加  
+0.3a: スマートメーター通信プログラム＆配信WEBサーバ追加  
+0.5a: 瞬時電力の履歴を記録。WEB表示機能を追加  
 
 
 ## Reference

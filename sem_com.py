@@ -9,6 +9,7 @@ import glob
 import sys
 import threading
 import socket
+import csv
 import json
 from pprint import pprint
 
@@ -29,9 +30,11 @@ SOCK_FILE = '/tmp/sem.sock'     # UNIXソケット
 TMP_LOG_FILE = '/tmp/sem.csv'   # 一時ログファイル名
 ERR_LOG_FILE = 'sem_err.log'    # エラー記録ファイル
 
-POW_DAY_LOG_DIR = 'sem_app/public/sem_log'  # ログ用ディレクトリ, 本スクリプトからの相対パス
+POW_DAY_LOG_DIR = 'sem_app/public/logs'  # ログ用ディレクトリ, 本スクリプトからの相対パス
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
 POW_DAY_LOG_FMT = '%Y%m%d'      #        日時フォーマット
+
+POW_DAYS_JSON_FILE = 'pow_days.json'    # JSON形式の電力ログファイル
 
 
 # GPIO初期化
@@ -143,29 +146,6 @@ class Y3ModuleSub(Y3Module):
                     self.search['timeout'] = 0
 
 
-# プロパティ値要求 'Get', 'GetRes'受信
-#   tid: トランザクションID
-#   epc: EHONET Liteプロパティ
-def sem_get_getres(epc):
-    sem_get(epc)    # 'Get'送信
-    start = time.time()
-    
-    while True:
-        if y3.get_queue_size():     # データ受信
-            msg_list = y3.dequeue_message() # 受信データ取り出し
-            if msg_list['COMMAND'] == 'ERXUDP':
-                return msg_list['DATA']
-            else:
-                sys.stderr.write('[Error]: Unknown data received.\n')
-                return False
-
-        else:   # データ未受信
-            if time.time() - start > 20:    # タイムアウト 20s
-                sys.stderr.write('[Error]: Time out.\n')
-                break
-            time.sleep(0.01)
-
-
 # プロパティ値要求 'Get'
 def sem_get(epc):
     global tid_counter
@@ -193,7 +173,6 @@ def pow_logfile_init(dt, logdir):
 
             if not os.path.exists(filename):    # 電力ログが存在しなければ作成する
                 fp = open(filename, 'w')
-                fp.write('timestamp,power\n')
                 fp.close()
 
         file_list = glob.glob(POW_DAY_LOG_HEAD + '*.csv')   # 電力ログ検索
@@ -202,10 +181,10 @@ def pow_logfile_init(dt, logdir):
                 continue
             else:
                 os.remove(f)    # 古い電力ログとリンクファイルを削除
-
-        for i in range(10):     # 電力ログへのシンボリックリンクを作成
-            link_file = POW_DAY_LOG_HEAD + str(i) + '.csv'
-            os.system('ln -s ' + day_file_list[i] + ' ' + link_file)
+                
+        # CSVファイルをJSONファイルに変換
+        file_list = glob.glob(POW_DAY_LOG_HEAD + '*.csv')   # 電力ログ検索
+        csv2json(sorted(file_list), POW_DAYS_JSON_FILE)
             
         return True
 
@@ -219,12 +198,17 @@ def pow_logfile_maintainance(last_dt, new_dt, logdir):
     
     # 電力ログ更新
     if last_dt.minute != new_dt.minute and new_dt.minute % 10 == 0: # 10分毎
-        today_file = POW_DAY_LOG_HEAD + last_dt.strftime(POW_DAY_LOG_FMT) + '.csv'
-        file_cat(today_file, TMP_LOG_FILE)
+        today_csv_file = POW_DAY_LOG_HEAD + last_dt.strftime(POW_DAY_LOG_FMT) + '.csv'
+        file_cat(today_csv_file, TMP_LOG_FILE)
         os.remove(TMP_LOG_FILE)         # 一時ログファイルを削除
-        
+
         if last_dt.day != new_dt.day:   # 日付変更
             pow_logfile_init(new_dt, logdir)    # 電力ログ初期化
+
+        else:
+            # CSVファイルをJSONファイルに変換
+            file_list = glob.glob(POW_DAY_LOG_HEAD + '*.csv')   # 電力ログ検索
+            csv2json(sorted(file_list), POW_DAYS_JSON_FILE)
 
 
 # ファイルを連結する
@@ -239,6 +223,31 @@ def file_cat(file_a, file_b):
     except:
         return False
         
+
+# CSVファイルをJSONファイルに変換する
+def csv2json(csvfiles, jsonfile):
+    csv_list = []
+    try:
+        for f in csvfiles:
+            csv_lines = csv.reader(open(f))
+            for line in csv_lines:
+                line = [int(line[0]), int(line[1])]
+                csv_list.append(line)
+    except:
+        sys.stderr.write('[Error]: Can not convert CSV file to JSON file\n')
+
+    s = json.dumps(csv_list)
+    
+    try:
+        f = open(jsonfile, 'w')
+        f.write(s)
+        f.close()
+    except:
+        sys.stderr.write('[Error]: Can not convert CSV file to JSON file\n')
+        return False
+        
+    return True
+
         
 # debug: エラーを記録する
 def debug_err_record(err_file, errmsg, data):

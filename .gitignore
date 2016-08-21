@@ -1,5 +1,5 @@
 __pycache__/
 sem_app/node_modules/
-sem_app/public/sem_log/
-user_conf.py
+sem_app/public/logs/
 user_conf_bak.py
+

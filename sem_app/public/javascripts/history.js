@@ -1,27 +1,65 @@
 $(function () {
-    data = $.get('/sem_log/data.json');
-    
-    $(function (data) {
+    $.getJSON('/logs/pow_days.json', function (data) {
+
+        Highcharts.setOptions({
+            global : {
+                timezoneOffset: -540     // 時差 -9時間(-540分）
+            }
+        });
+
         // Create the chart
-        $('#container').highcharts('StockChart', {
+        $('#pow-history-container').highcharts('StockChart', {
 
-
-            rangeSelector : {
-                selected : 1
+            rangeSelector: {
+                buttons: [{
+                    type: 'hour',
+                    count: 1,
+                    text: '1h'
+                }, {
+                    type: 'hour',
+                    count: 12,
+                    text: '12h'
+                }, {
+                    type: 'day',
+                    count: 1,
+                    text: 'Day'
+                }, {
+                    type: 'week',
+                    count: 7,
+                    text: 'Week'
+                }, {
+                    type: 'all',
+                    text: 'All'
+                }],
+                selected: 2
             },
+            
+            credits: {
+			    enabled: false
+		    },
 
             title : {
-                text : 'AAPL Stock Price'
+                text : null
             },
 
+            scrollbar : {
+                enabled : false
+            },
+            
             series : [{
-                name : 'AAPL',
+                type : 'line',
+                color: '#F06A40',
+                name : 'Power[W]',
                 data : data,
                 tooltip: {
-                    valueDecimals: 2
-                }
-            }]
+                    valueDecimals: 0
+                },
+            }],
+
+            yAxis : {
+                min: 0,
+                max: 6000
+            }
         });
     });
 });
-

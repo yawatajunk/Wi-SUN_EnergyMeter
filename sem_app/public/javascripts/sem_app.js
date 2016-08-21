@@ -78,7 +78,7 @@ $(function () {
 					var point = this.series[0].points[0]
 					setInterval(function () {
 						point.update(pow_int);
-					}, 1000);
+					}, 2000);
 				}
 			}
 		},
@@ -88,9 +88,9 @@ $(function () {
 		},
 			
 		title: {
-			text: 'Power Usage'
+			text: null
 		},
-
+		
 		pane: {
 			startAngle: -150,
 			endAngle: 150,
@@ -112,7 +112,7 @@ $(function () {
 						[1, '#FFF']
 					]
 				},
-				borderWidth: 0,
+				borderWidth: 1,
 				outerRadius: '100%'
 			}, {
 				// default background
@@ -131,17 +131,17 @@ $(function () {
 
 			minorTickInterval: 'auto',
 			minorTickWidth: 1,
-			minorTickLength: 10,
+			minorTickLength: 5,
 			minorTickPosition: 'inside',
 			minorTickColor: '#666',
 
-			tickPixelInterval: 30,
+			tickPixelInterval: 50,
 			tickWidth: 2,
 			tickPosition: 'inside',
-			tickLength: 10,
+			tickLength: 15,
 			tickColor: '#666',
 			labels: {
-				step: 2,
+				step: 1,
 				rotation: 'auto'
 			},
 			title: {
@@ -154,7 +154,8 @@ $(function () {
 			}, {
 				from: 2000,
 				to: 4000,
-				color: '#DDDF0D' // yellow
+				color: 'orange'
+				//color: '#DDDF0D' // yellow
 			}, {
 				from: 4000,
 				to: 6000,

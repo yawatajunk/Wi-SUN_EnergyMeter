@@ -18,47 +18,33 @@
 
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://code.highcharts.com/highcharts-more.js"></script>
-    <script src="https://code.highcharts.com/modules.exporting.js"></script>
+    <!--script src="https://code.highcharts.com/modules.exporting.js"></script-->
 
 	<script src="/javascripts/sem_app.js"></script>
 
-
-	<table class="table">
-		<tbody>
-			<tr>
-			</tr>
-		</tbody>
-	</table>
-	
 	<div class="container" id="container">
-		<div class="well">
-			<h1>
-				Smart Energy Meter Demo
-			</h1>
-			<div>
-				<p>Demo to fetch instant powers from an smart meter via Wi-SUN Route-B.</p>
-				<p>ECHONET Lite protocol is used for a middleware to communicate between the meter and a Wi-SUN module BP35A1 installed in a Raspberry Pi.</p>
-			</div>
-		</div>
-		
-		<div class="panel panel-default">
+    
+        <div class="btn-group" style="margin: 1em 0;">
+            <a href="/" class="btn btn-default" target="">Pow usage</a>
+            <a href="/history/" class="btn btn-default">Pow history</a>
+        </div>
+
+        <div class="panel panel-default">
 			<div class="panel-heading">
-				<h3 class="panel-title">
-					Power Usage
-				</h3>
+				<h3 class="panel-title">Power usage</h3>
 			</div>
-			<div class="panel-body">
-				<p id="inst-power">
-					- - - -
-				</p>
-				<div class="progress progress-striped active">
-					<div id="progress-bar" class="progress-bar">
-					</div>
-				</div>
-			</div>
-		</div>
-		<div id="chart-container" style="min-width: 310px; max-width: 400px; height: 320px; margin: 0 auto;"></div>
-		<div><p></p></dev>
+            <div class="panel-body">
+                <p id="inst-power">
+                    - - - -
+                </p>
+                <div class="progress progress-striped active">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                
+                <div id="chart-container" style="min-width: 250px; max-width: 320px; height: 320px; margin: 0 auto;"></div>
+
+            </div>
+        </div>
 		
 		<div class="pull-right">
 			Copyright (C) 2016 pi@blue-black.ink
