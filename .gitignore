@@ -2,4 +2,3 @@ __pycache__/
 sem_app/node_modules/
 sem_app/public/logs/
 user_conf_bak.py
-
