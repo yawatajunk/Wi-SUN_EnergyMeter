@@ -1,6 +1,5 @@
 $(function () {
     $.getJSON('/logs/pow_days.json', function (data) {
-
         Highcharts.setOptions({
             global : {
                 timezoneOffset: -540     // 時差 -9時間(-540分）

@@ -78,7 +78,7 @@ $(function () {
 					var point = this.series[0].points[0]
 					setInterval(function () {
 						point.update(pow_int);
-					}, 2000);
+					}, 1000);
 				}
 			}
 		},

@@ -222,7 +222,7 @@ def file_cat(file_a, file_b):
         return True
     except:
         return False
-        
+
         
 # CSVファイルをJSONファイルに変換する
 def csv2json(csvfiles, jsonfile):
@@ -248,7 +248,7 @@ def csv2json(csvfiles, jsonfile):
         
     return True
 
-        
+
 # debug: エラーを記録する
 def debug_err_record(err_file, errmsg, data):
     js = json.dumps([errmsg, round(time.time()), data]) + '\n'
