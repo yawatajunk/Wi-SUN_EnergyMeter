@@ -223,7 +223,7 @@ def file_cat(file_a, file_b):
     except:
         return False
 
-        
+
 # CSVファイルをJSONファイルに変換する
 def csv2json(csvfiles, jsonfile):
     csv_list = []
