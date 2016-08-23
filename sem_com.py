@@ -180,7 +180,7 @@ def pow_logfile_init(dt, logdir):
             if f in day_file_list:
                 continue
             else:
-                os.remove(f)    # 古い電力ログとリンクファイルを削除
+                os.remove(f)    # 古い電力ログを削除
                 
         # CSVファイルをJSONファイルに変換
         file_list = glob.glob(POW_DAY_LOG_HEAD + '*.csv')   # 電力ログ検索
@@ -231,7 +231,7 @@ def csv2json(csvfiles, jsonfile):
         for f in csvfiles:
             csv_lines = csv.reader(open(f))
             for line in csv_lines:
-                line = [int(line[0]), int(line[1])]
+                line = [int(line[0]), None if line[1] == 'None' else int(line[1])]
                 csv_list.append(line)
     except:
         sys.stderr.write('[Error]: Can not convert CSV file to JSON file\n')
@@ -366,9 +366,17 @@ if __name__ == '__main__':
                     else:
                         time.sleep(0.1)
                                      
-                sem_get('instant_power')
+                sem_get('instant_power')    # Get
                 
-                while True:
+                while True:     # GetRes待ちループ
+                
+                    rcd_time = time.time()      # rcd_time[s]
+                    new_dt = datetime.datetime.fromtimestamp(rcd_time)
+                    
+                    # ログファイルメンテナンス
+                    pow_logfile_maintainance(saved_dt, new_dt, logdir)
+                    saved_dt = new_dt
+
                     if y3.get_queue_size():
                         msg_list = y3.dequeue_message()
                         if msg_list['COMMAND'] == 'ERXUDP':
@@ -383,18 +391,11 @@ if __name__ == '__main__':
                                     
                                 else:
                                     watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
-                                    rcd_time = time.time()      # rcd_time[s]
-                                    new_dt = datetime.datetime.fromtimestamp(rcd_time)
-
-                                    # ログファイルメンテナンス
-                                    pow_logfile_maintainance(saved_dt, new_dt, logdir)
-                                    saved_dt = new_dt
-
                                     sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
                             
                                     try:    # 一時ログファイルに書き込み
                                         f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
-                                        f.write('{},{}\n'.format(round(rcd_time * 1000), watt_int));
+                                        f.write('{},{}\n'.format(round(rcd_time) * 1000, watt_int));
                                         f.close()
                                     except:
                                         sys.stderr.write('[Error]: can not write to file.\n')
@@ -424,7 +425,15 @@ if __name__ == '__main__':
                         
                         if time.time() - start > 20:    # GetRes最大待ち時間: 20s
                             sys.stderr.write('[Error]: Time out.\n')
+                            
+                            try:    # 一時ログファイルに書き込み
+                                f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
+                                f.write('{},None\n'.format(round(rcd_time) * 1000));
+                                f.close()
+                            except:
+                                sys.stderr.write('[Error]: can not write to file.\n')
                             break
+                            
                         time.sleep(0.1)
 
             except KeyboardInterrupt:
