@@ -231,7 +231,7 @@ def csv2json(csvfiles, jsonfile):
         for f in csvfiles:
             csv_lines = csv.reader(open(f))
             for line in csv_lines:
-                line = [int(line[0]), None if line[1] == 'None' else int(line[1])]
+                line = [int(line[0])*1000, None if line[1] == 'None' else int(line[1])]
                 csv_list.append(line)
     except:
         sys.stderr.write('[Error]: Can not convert CSV file to JSON file\n')
@@ -395,7 +395,7 @@ if __name__ == '__main__':
                             
                                     try:    # 一時ログファイルに書き込み
                                         f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
-                                        f.write('{},{}\n'.format(round(rcd_time) * 1000, watt_int));
+                                        f.write('{},{}\n'.format(round(rcd_time), watt_int));
                                         f.close()
                                     except:
                                         sys.stderr.write('[Error]: can not write to file.\n')
@@ -427,8 +427,8 @@ if __name__ == '__main__':
                             sys.stderr.write('[Error]: Time out.\n')
                             
                             try:    # 一時ログファイルに書き込み
-                                f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
-                                f.write('{},None\n'.format(round(rcd_time) * 1000));
+                                f = open(TMP_LOG_FILE, 'a')
+                                f.write('{},None\n'.format(round(rcd_time)));
                                 f.close()
                             except:
                                 sys.stderr.write('[Error]: can not write to file.\n')
