@@ -24,13 +24,13 @@ $(function () {
                     text: 'Day'
                 }, {
                     type: 'week',
-                    count: 7,
+                    count: 1,
                     text: 'Week'
                 }, {
                     type: 'all',
                     text: 'All'
                 }],
-                selected: 2
+                selected: 3
             },
             
             credits: {
