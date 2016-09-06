@@ -7,6 +7,7 @@
 # Copyright(C) 2016 pi@blue-black.ink
 #
 
+import datetime
 import serial
 import threading
 import time
@@ -36,7 +37,7 @@ class Y3Module(threading.Thread):
             'start_time': None,             # UART送信時のtime
             'timeout': 0}                   # 設定タイムアウト時間[s]
 
-        self.msg_list_pana_queue = []    # debug: UDP(PANAポート)のデータを保存
+        self.msg_list_lock = threading.Lock()   # msg_listの排他制御用
 
 
     def set_opt(self, flag):
@@ -67,7 +68,7 @@ class Y3Module(threading.Thread):
 
 
     def set_channel(self, ch):
-        """Wi-Sunチャンネル設定"""
+        """Wi-SUNチャンネル設定"""
         bc = '{:02X}'.format(ch).encode()
         self.write(b'SKSREG S02 ' + bc + b'\r\n', ['OK'])
 
@@ -127,23 +128,33 @@ class Y3Module(threading.Thread):
 
     def start_pac(self, ip6):
         """PaC開始"""
-        res = self.write(b'SKJOIN ' + ip6.encode() + b'\r\n', [['EVENT 24', 'EVENT 25']], 
+        res = self.write(b'SKJOIN ' + ip6.encode() + b'\r\n', [['EVENT 24', 'EVENT 25', 'FAIL ER10']], 
                          ignore = True, timeout = 10)
         try:
             result = True if res[0]['COMMAND'] == 'EVENT 25' else False
-        except:     # IndexErrorが発生するときのための暫定処理。要修正
+            return result
+        except:     # IndexErrorが発生するときのための暫定処理。要検討
             result = False
-        return result
 
-        
+            
+    
     def restart_pac(self):
         """PaCをリスタート"""
-        res = self.write(b'SKREJOIN\r\n', [['OK', 'FAIL ER10']], ignore = True, timeout = 10)
+        res = self.write(b'SKREJOIN\r\n', [['EVENT 24', 'EVENT 25', 'FAIL ER10']], ignore = True, timeout = 10)
         try:
-            result = True if res[0]['COMMAND'] == 'OK' else False
-        except:     # IndexErrorが発生するときのための暫定処理。要修正
+            result = True if res[0]['COMMAND'] == 'EVENT 25' else False
+            return result
+        except:     # IndexErrorが発生するときのための暫定処理。要検討
             result = False
-        return result
+
+            
+    def pac_terminate(self):
+        """PANAセッションを終了する"""
+        res = self.write(b'SKTERM\r\n', [['OK', 'FAIL ER10']], ignore = True, timeout = 10)
+        if res[0]['COMMAND'] == 'OK':
+            return True
+        else:
+            return False
         
 
     def get_ip6(self, add):
@@ -182,9 +193,9 @@ class Y3Module(threading.Thread):
                          sec_bt + len_bt + message, ['EVENT 21', 'OK'])
 
         if res[0]['PARAM'] == '01':
-            sys.stderr.write('[Error]: UDP transmission.\n')
+            sys.stdout.write('[Error]: UDP transmission.\n')
             if self.get_tx_limit():
-                sys.stderr.write('[Error]: TX limit.\n')
+                sys.stdout.write('[Error]: TX limit.\n')
             return False
         else:
             return True     # 送信成功
@@ -304,6 +315,7 @@ class Y3Module(threading.Thread):
             msg_list['SENDER'] = cols[2]
             if len(cols) == 4:
                 msg_list['PARAM'] = cols[3]
+            
             return msg_list
 
         if cols[0] == 'ERXUDP':  # UDP
@@ -374,16 +386,23 @@ class Y3Module(threading.Thread):
 
     def enqueue_message(self, msg_list):
         """メッセージをリストに追加"""
+        self.msg_list_lock.acquire()
         self.msg_list_queue.append(msg_list)
+        self.msg_list_lock.release()
 
 
     def dequeue_message(self):
         """メッセージをリストから取り出す"""
+        self.msg_list_lock.acquire()
+        
         if self.msg_list_queue:
-            #print('out: {}'.format(self.msg_list_queue[0]))  # debug
-            return self.msg_list_queue.pop(0)
+            result = self.msg_list_queue.pop(0)
         else:
-            return False
+            result = False
+            
+        self.msg_list_lock.release()
+        
+        return result
             
 
     def get_queue_size(self):
@@ -393,14 +412,13 @@ class Y3Module(threading.Thread):
 
     def uart_open(self, dev, baud, timeout):
         """UARTオープン"""
-        
         try:
             self.uart_hdl = serial.Serial(dev, baud, timeout=timeout)
             self.uart_dev = dev
             self.uart_baud = baud
             return True
         except OSError as msg:
-            sys.stderr.write('[Error]: {}\n'.format(msg))
+            sys.stdout.write('[Error]: {}\n'.format(msg))
             return False
 
 
@@ -409,7 +427,7 @@ class Y3Module(threading.Thread):
         try:
             self.uart_hdl.close()
         except OSError as msg:
-            sys.stderr.write('[Error]: {}\n'.format(msg))
+            sys.stdout.write('[Error]: {}\n'.format(msg))
 
 
     def write(self, send_msg, search_words = [], ignore = False, timeout = 0):
@@ -421,7 +439,6 @@ class Y3Module(threading.Thread):
             timeout: タイムアウト時間[s]
         """
         try:
-            #print(b'write:'+send_msg)   # debug
             self.uart_hdl.write(send_msg)
             if search_words:
                 self.search['found_word_list'] = []
@@ -435,7 +452,7 @@ class Y3Module(threading.Thread):
                 return self.search['found_word_list']
 
         except OSError as msg:
-            sys.stderr.write('[Error]: {}\n'.format(msg))
+            sys.stdout.write('[Error]: {}\n'.format(msg))
             return False
 
 
@@ -446,7 +463,7 @@ class Y3Module(threading.Thread):
             #print('read:'+res)   # debug
             return res
         except OSError as msg:
-            sys.stderr.write('[Error]: {}\n'.format(msg))
+            sys.stdout.write('[Error]: {}\n'.format(msg))
             return False
 
 
@@ -457,9 +474,10 @@ class Y3Module(threading.Thread):
             if msg:
                 msg_list = self.parse_message(msg)
 
-                # debug: UDP(PANA)の受信データを保存する
+                # debug: UDP(PANA)の受信
                 if msg_list['COMMAND'] == 'ERXUDP' and msg_list['LPORT'] == self.Y3_UDP_PANA_PORT:
-                    self.msg_list_pana_queue.append(msg_list)
+                    #sys.stdout.write('[Note]: PANA message received.\n')
+                    pass
                
                 elif self.search['search_words']:     # サーチ中である
                     # サーチワードを受信した。

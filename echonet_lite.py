@@ -56,6 +56,7 @@ class EchonetLite:
         'location':             b'\x81',
         'version':              b'\x82',
         'idn':                  b'\x83',
+        'fault_status':         b'\x88',
         'manufacturer_code':    b'\x8a',
         'facility_code':        b'\x8b',
         'product_code':         b'\x8c',

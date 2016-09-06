@@ -8,7 +8,6 @@ import threading
 import time
 import os
 import pickle
-from pprint import pprint
 import socket
 import sys
 
@@ -27,7 +26,6 @@ TMP_LOG_DIR = '/tmp/'               # 一次ログディレクトリ
 LOG_DIR = 'sem_app/public/logs/'    # ログ用ディレクトリ, 本スクリプトからの相対パス
 SOCK_FILE = TMP_LOG_DIR + 'sem.sock'    # UNIXソケット
 TMP_LOG_FILE = TMP_LOG_DIR + 'sem.csv'  # 一時ログファイル
-ERR_LOG_FILE = LOG_DIR + 'sem_err.log'  # エラー記録ファイル
 POW_DAYS_JSON_FILE = LOG_DIR + 'pow_days.json'  # JSON形式の電力ログファイル
 
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
@@ -105,10 +103,10 @@ class Y3ModuleSub(Y3Module):
             if msg:
                 msg_list = self.parse_message(msg)
 
-                # debug: UDP(PANA)の受信データを保存する
+                # debug: UDP(PANA)の受信
                 if msg_list['COMMAND'] == 'ERXUDP' and msg_list['LPORT'] == self.Y3_UDP_PANA_PORT:
-                    self.msg_list_pana_queue.append(msg_list)
-               
+                    sys.stdout.write('[PANA]: {}\n'.format(msg_list['DATA']))
+
                 # スマートメーターが自発的に発するプロパティ通知
                 if msg_list['COMMAND'] == 'ERXUDP' and msg_list['DATA'][0:4] == self.EHD \
                             and msg_list['DATA'][20:22] == self.ECV_INF:
@@ -143,8 +141,31 @@ class Y3ModuleSub(Y3Module):
                     self.search['timeout'] = 0
 
 
+def sem_get_getres(epc):
+    """プロパティ値要求 'Get', 'GetRes'受信
+        epc: EHONET Liteプロパティ
+    """
+    sem_get(epc)    # 'Get'送信
+    start = time.time()
+    
+    while True:
+        if y3.get_queue_size():     # データ受信
+            msg_list = y3.dequeue_message() # 受信データ取り出し
+            if msg_list['COMMAND'] == 'ERXUDP':
+                return msg_list['DATA']
+            else:
+                sys.stdout.write('[Error]: Unknown data received.\n')
+                return False
+
+        else:   # データ未受信
+            if time.time() - start > 20:    # タイムアウト 20s
+                sys.stdout.write('[Error]: Time out.\n')
+                return False
+            time.sleep(0.01)
+
+
 def sem_get(epc):
-    """プロパティ値要求 "Get" """
+    """プロパティ値要求 'Get' """
     global tid_counter
     
     frame = sem.FRAME_DICT['get_' + epc]
@@ -250,14 +271,16 @@ def csv2pickle(csvfile, pklfile):
     except:
         return False
         
-    ts = int(data[0].strip().split(',')[0])     # ログからタイムスタンプを取得
-    dt = datetime.datetime.fromtimestamp(ts)    # datetimeに変換
-
-    # 0時0分のタイムスタンプ
-    ts_origin = datetime.datetime.timestamp(datetime.datetime(dt.year, dt.month, dt.day))
+    if data == []:      # 日付変更時でcsvファイルが空の場合
+        dt = datetime.date.today()    # 現時刻から、0時0分のタイムスタンプを作成
+        ts_origin = datetime.datetime.combine(dt, datetime.time(0, 0)).timestamp()
+    else:
+        ts = int(data[0].strip().split(',')[0])     # ログからタイムスタンプを取得
+        dt = datetime.datetime.fromtimestamp(ts)    # 0時0分のタイムスタンプを作成
+        ts_origin = datetime.datetime(dt.year, dt.month, dt.day).timestamp()
 
     data_work = [[None, []] for row in range(60 * 24)]  # 作業用空箱
-
+    
     for minute in range(60 * 24):
         data_work[minute][0] = ts_origin + 60 * minute  # 1分刻みのタイムスタンプを設定
 
@@ -308,27 +331,20 @@ def pickle2json(pklfiles, jsonfile):
         return False
 
 
-def debug_err_record(err_file, errmsg, data):
-    """エラーを記録する(debug)"""
-    js = json.dumps([errmsg, round(time.time()), data]) + '\n'
-    f = open(err_file, 'a')
-    f.write(js)
-    f.close()
-
-
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
         
     sem_inf_list = []       # スマートメータのプロパティ通知用
-    tid_counter = 0
-
+    tid_counter = 0         # TIDカウンタ
+    
+    pana_ts = 0.0           # PANA認証時のタイムスタンプを記録
     saved_dt = datetime.datetime.now()      # 現在日時を保存
     
-    sys.stderr.write('Log files setup...\n')
+    sys.stdout.write('Log files setup...\n')
     result = pow_logfile_init(saved_dt)     # ログファイル初期化
 
     if not result:
-        sys.stderr.write('[Error]: Log file error\n')
+        sys.stdout.write('[Error]: Log file error\n')
         sys.exit(-1)
 
     gpio_init()
@@ -340,7 +356,7 @@ if __name__ == '__main__':
     y3 = Y3ModuleSub()
     y3.uart_open(dev='/dev/ttyAMA0', baud=115200, timeout=1)
     y3.start()
-    sys.stderr.write('Wi-SUN reset...\n')
+    sys.stdout.write('Wi-SUN reset...\n')
     
     y3reset()
     y3.set_echoback_off()
@@ -358,7 +374,7 @@ if __name__ == '__main__':
     sem_exist = False
 
     for i in range(10):
-        sys.stderr.write('({}/10) Active scan start with a duration of {}...\n'.format(i+1, user_conf.SEM_DURATION))
+        sys.stdout.write('({}/10) Active scan with a duration of {}...\n'.format(i+1, user_conf.SEM_DURATION))
         channel_list = y3.active_scan(user_conf.SEM_DURATION)
         if channel_list is False:   # active_scan()をCtrl+cで終了したとき
             break
@@ -367,57 +383,93 @@ if __name__ == '__main__':
             break
     
     if not sem_exist:   # スキャン失敗
-        sys.stderr.write('[Error]: Can not connect to a smart energy meter\n')
+        sys.stdout.write('[Error]: Can not connect to a smart energy meter\n')
 
     if sem_exist:
         ch = channel_list[0]
 
-        sys.stderr.write('Energy Meter: [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]\n'.format(ch['Channel'],
+        sys.stdout.write('Energy Meter: [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]\n'.format(ch['Channel'],
                          ch['Addr'], ch['LQI'], ch['Pan ID']))
 
         # チャンネル設定
         y3.set_channel(ch['Channel'])
-        sys.stderr.write('Set channel to 0x{:02X}\n'.format(ch['Channel']))
+        sys.stdout.write('Set channel to 0x{:02X}\n'.format(ch['Channel']))
 
         # スマートメータのIP6アドレス
         ip6 = y3.get_ip6(ch['Addr'])
-        sys.stderr.write('IP6 address is \'{}\'\n'.format(ip6))
+        sys.stdout.write('IP6 address is \'{}\'\n'.format(ip6))
 
         # PAN ID
         y3.set_pan_id(ch['Pan ID'])
-        sys.stderr.write('Set PAN ID to 0x{:04X}\n'.format(ch['Pan ID']))
+        sys.stdout.write('Set PAN ID to 0x{:04X}\n'.format(ch['Pan ID']))
 
         # PANA認証(PaC)
         sem_exist = False
-        for i in range(10):       
-            sys.stderr.write('({}/10) PANA connection...\n'.format(i+1))
+        pana_done = False
+        for i in range(10):
+            sys.stdout.write('({}/10) PANA connection...\n'.format(i+1))
             sem_exist = y3.start_pac(ip6)
-            if sem_exist:
-                sys.stderr.write('Done.\n')
-                time.sleep(3)
-                break
             
-        # debug: PANA認証時の受信データを表示        
-        #while y3.msg_list_pana_queue:
-        #    pprint(y3.msg_list_pana_queue[0])
-        #    y3.msg_list_pana_queue.pop(0)
+            if sem_exist:       # インスタンスリスト通知の受信待ち
+                st = time.time()
+                while True:
+                    if sem_inf_list:
+                        pana_ts = time.time()   # タイムスタンプを保存
+                        sys.stdout.write('Successfully done.\n')               
+                        time.sleep(3)
+                        pana_done = True
+                        break
+                    elif time.time() - st > 15:     # PANA認証失敗によるタイムアウト
+                        sys.stdout.write('Fail to connect.\n')
+                        sem_exist = False
+                        pana_done = False
+                        break
+                    else:
+                        time.sleep(0.1)
+            
+            if pana_done:
+                break
 
+            
     if sem_exist:
         sem = EchonetLiteSmartEnergyMeter()
         
-        # 参考までに取得（ECHONET Liteを参照すること）
-        #pprint(sem_get_getres('get_pty_map'))   # Get プロパティマップ
-        #pprint(sem_get_getres('set_pty_map'))   # Set プロパティマップ
-        #pprint(sem_get_getres('chg_pty_map'))   # 状態変化 プロパティマップ
-        #print('Operation status: ', sem_get_getres('operation_status'))     # 動作状態
-        #print('     Coefficient: ', sem_get_getres('epc_coefficient'))      # 係数
-        #print('           Digit: ', sem_get_getres('digits'))               # 有効桁数
-        #print('  Unit of energy: ', sem_get_getres('unit_amount_energy'))   # 単位
+        # 参考までに各種データ取得
+        get_list = ['fault_status', 'get_pty_map', 'set_pty_map', 'chg_pty_map',
+                    'operation_status', 'epc_coefficient', 'digits', 'unit_amount_energy']
+        for epc in get_list:
+            data = sem_get_getres(epc)
+            if data:
+                sys.stdout.write('[Get]: {}, {}\n'.format(epc, data))
+            else:
+                sys.stdout.write('[Get]: {}, Fail to receive'.format(epc))
 
-        start = time.time()-1000  # 初期値を1000s前に設定
+        start = time.time() - 1000  # 初期値を1000s前に設定
         while True:
             try:
-                now = time.time()
+                pana_done = False
+                if (time.time() - pana_ts > 12 * 60 * 60):    # 12時間毎にPANA認証を更新
+                    sys.stdout.write('PANA re-connection...\n')
+                    sem_exist = y3.restart_pac()
+
+                    if sem_exist:       # インスタンスリスト通知の受信待ち
+                        st = time.time()
+                        while True:
+                            if sem_inf_list:
+                                pana_ts = time.time()   # タイムスタンプを保存
+                                pana_done = True
+                                sys.stdout.write('Successfully done.\n')               
+                                time.sleep(3)
+                                break
+                            elif time.time() - st > 15:     # PANA認証失敗によるタイムアウト
+                                sys.stdout.write('Fail to connect.\n')
+                                break
+                            else:
+                                time.sleep(0.1)                        
+                    
+                    if not pana_done:
+                        break       # PANA認証失敗でbreakする
+
                 while True:
                     if (time.time() - start) >= user_conf.SEM_INTERVAL:
                         start = time.time()
@@ -427,8 +479,7 @@ if __name__ == '__main__':
                                      
                 sem_get('instant_power')    # Get
                 
-                while True:     # GetRes待ちループ
-                
+                while True:     # GetRes待ちループ        
                     rcd_time = time.time()      # rcd_time[s]
                     new_dt = datetime.datetime.fromtimestamp(rcd_time)
                     
@@ -445,52 +496,50 @@ if __name__ == '__main__':
                             if parsed_data:
                                 if parsed_data['tid'] != tid_counter:
                                     errmsg = '[Error]: ECHONET Lite TID mismatch\n'
-                                    sys.stderr.write(errmsg)
-                                    debug_err_record(ERR_LOG_FILE, errmsg, msg_list)
+                                    sys.stdout.write(errmsg)
                                     
                                 else:
                                     watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
-                                    sys.stderr.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
+                                    sys.stdout.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
+                                    sys.stdout.flush()
                             
                                     try:    # 一時ログファイルに書き込み
                                         f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
                                         f.write('{},{}\n'.format(round(rcd_time), watt_int))
                                         f.close()
                                     except:
-                                        sys.stderr.write('[Error]: can not write to file.\n')
+                                        sys.stdout.write('[Error]: can not write to file.\n')
                             
                                     if sock:  # UNIXドメインソケットで送信
                                         sock_data = json.dumps({'time': rcd_time, 'power': watt_int}).encode('utf-8')
                                         try:
                                             sock.send(sock_data)
                                         except:
-                                            sys.stderr.write('[Error]: Broken socket.\n')
+                                            sys.stdout.write('[Error]: Broken socket.\n')
                                     break
                             
                             else:   # 電文が壊れている
                                 errmsg = '[Error]: ECHONET Lite frame error\n'
-                                sys.stderr.write(errmsg)
-                                debug_err_record(ERR_LOG_FILE, errmsg, msg_list)
+                                sys.stdout.write(errmsg)
                             
                         else:   # 電文が壊れている???
                             errmsg = '[Error]: Unknown data received.\n'
-                            sys.stderr.write(errmsg)
-                            debug_err_record(ERR_LOG_FILE, errmsg, msg_list)
+                            sys.stdout.write(errmsg)
 
                     else:   # GetRes待ち
                         while sem_inf_list:
-                            pprint(sem_inf_list[0]) # Inf(30分計量値等)をキャッチしたときに表示する
-                            sem_inf_list.pop(0)
+                            inf = sem_inf_list.pop(0)
+                            sys.stdout.write('[Inf]: {}\n'.format(inf['DATA']))
                         
                         if time.time() - start > 20:    # GetRes最大待ち時間: 20s
-                            sys.stderr.write('[Error]: Time out.\n')
+                            sys.stdout.write('[Error]: Time out.\n')
                             
                             try:    # 一時ログファイルに書き込み
                                 f = open(TMP_LOG_FILE, 'a')
                                 f.write('{},None\n'.format(round(rcd_time)))
                                 f.close()
                             except:
-                                sys.stderr.write('[Error]: can not write to file.\n')
+                                sys.stdout.write('[Error]: can not write to file.\n')
                             break
                             
                         time.sleep(0.1)
@@ -499,16 +548,16 @@ if __name__ == '__main__':
                 break
 
     else:
-        sys.stderr.write('[Error]: Can not connect with a smart energy meter.\n')
+        sys.stdout.write('[Error]: Can not connect with a smart energy meter.\n')
 
     # 終了処理
     if sock:
         try:
             sock.close()
         except:
-            sys.stderr.write('[Error]: Broken socket.\n')
+            sys.stdout.write('[Error]: Broken socket.\n')
 
-    sys.stderr.write('\nWi-SUN reset...\n')
+    sys.stdout.write('\nWi-SUN reset...\n')
     y3reset()
     y3.terminate()
     y3.uart_close()
@@ -518,5 +567,5 @@ if __name__ == '__main__':
     if os.path.exists(TMP_LOG_FILE):
         os.remove(TMP_LOG_FILE)
 
-    sys.stderr.write('Bye.\n')
+    sys.stdout.write('Bye.\n')
     sys.exit(0)
