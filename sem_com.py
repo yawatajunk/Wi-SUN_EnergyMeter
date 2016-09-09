@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # coding: UTF-8
 
+import argparse
+import binascii
 import datetime
 import glob
 import json
@@ -31,6 +33,9 @@ POW_DAYS_JSON_FILE = LOG_DIR + 'pow_days.json'  # JSON形式の電力ログフ�
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
 POW_DAY_LOG_FMT = '%Y%m%d'      #        日時フォーマット
 
+# 低圧スマート電力量計 情報保存用
+sem_info = {}
+
 
 def gpio_init():
     """GPIO初期化"""
@@ -57,7 +62,7 @@ class LedThread(threading.Thread):
         while not self._termFlag:
             if self._trigger:
                 self.ledon(True)
-                time.sleep(0.1)
+                time.sleep(0.3)
                 self.ledon(False)
                 self._trigger = False
             else:
@@ -286,9 +291,10 @@ def csv2pickle(csvfile, pklfile):
 
     for row in data:
         row_list = row.strip().split(',')   # [タイムスタンプ(s), 電力]
-        minute = int((int(row_list[0]) - ts_origin) / 60)   # 00:00からの経過時間[分]
         if row_list[1] != 'None':
-            data_work[minute][1].append(int(row_list[1]))   # 電力を追加
+            minute = int((int(row_list[0]) - ts_origin) / 60)   # 00:00からの経過時間[分]
+            if minute > 0 and minute < 60 * 24: 
+                data_work[minute][1].append(int(row_list[1]))   # 電力を追加
 
     data_summary = [[None, None] for row in range(60 * 24)] # 集計用空箱
     for minute, data in enumerate(data_work):
@@ -331,7 +337,22 @@ def pickle2json(pklfiles, jsonfile):
         return False
 
 
+# コマンドライン引数
+def arg_parse():
+    p = argparse.ArgumentParser()
+    p.add_argument('-d', '--delay', help='This script starts after a delay of [n] seconds.', default=0, type=int)
+    args = p.parse_args()
+    return args
+
+
 if __name__ == '__main__':
+    args = arg_parse()
+    if args.delay:  # スクリプトをスタートするまでの待ち時間。sem_appとの連携時にsem_com.pyのスタートを遅らせる。
+        if isinstance(args.delay, int):
+            ws = args.delay
+            sys.stdout.write('Waiting for {} seconds...\n'.format(ws))
+            time.sleep(ws)
+
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
         
     sem_inf_list = []       # スマートメータのプロパティ通知用
@@ -434,16 +455,113 @@ if __name__ == '__main__':
     if sem_exist:
         sem = EchonetLiteSmartEnergyMeter()
         
-        # 参考までに各種データ取得
-        get_list = ['fault_status', 'get_pty_map', 'set_pty_map', 'chg_pty_map',
-                    'operation_status', 'epc_coefficient', 'digits', 'unit_amount_energy']
-        for epc in get_list:
-            data = sem_get_getres(epc)
-            if data:
-                sys.stdout.write('[Get]: {}, {}\n'.format(epc, data))
-            else:
-                sys.stdout.write('[Get]: {}, Fail to receive'.format(epc))
+        get_list = ['operation_status', 'location', 'version', 'fault_status',
+                    'manufacturer_code', 'production_no',
+                    'current_time', 'current_date', 
+                    'get_pty_map', 'set_pty_map', 'chg_pty_map',
+                    'epc_coefficient', 'digits', 'unit_amount_energy', 'amount_energy_normal',
+                    'recent_amount_energy_norm', 'hist_amount_energy1_norm']
+                    
+        for epc in get_list:    # 各種データ取得
+            edt = False
+            for i in range(10):
+                data = sem_get_getres(epc)
+                if data:
+                    parsed_data = sem.parse_frame(data)
+                    edt = parsed_data['ptys'][0]['edt']
+                    break
+                else:   # Get失敗 再試行
+                    continue
+            
+            if edt:
+                if epc == 'operation_status':
+                    result = True if edt == b'\x30' else False
 
+                elif epc == 'location':
+                    result = binascii.b2a_hex(edt)
+                    
+                elif epc == 'version':
+                    result = edt[2:3].decode()
+                    
+                elif epc == 'manufacturer_code':
+                    result = binascii.b2a_hex(edt)
+
+                elif epc == 'production_no':
+                    result = binascii.b2a_hex(edt)
+                   
+                elif epc == 'current_time':
+                    hour = int.from_bytes(edt[0:1], 'big')
+                    min = int.from_bytes(edt[1:2], 'big')
+                    result = datetime.time(hour, min)
+
+                elif epc == 'current_date':
+                    year = int.from_bytes(edt[0:2], 'big')
+                    month = int.from_bytes(edt[2:3], 'big')
+                    day = int.from_bytes(edt[3:4], 'big')
+                    result = datetime.date(year, month, day)
+
+                elif epc == 'fault_status':
+                    result = True if edt == b'\x42' else False
+
+                elif epc == 'get_pty_map':
+                    result = binascii.b2a_hex(edt)
+
+                elif epc == 'set_pty_map':
+                    result = binascii.b2a_hex(edt)
+
+                elif epc == 'chg_pty_map':
+                    result = binascii.b2a_hex(edt)
+
+                elif epc == 'epc_coefficient':
+                    result = int.from_bytes(edt, 'big')
+
+                elif epc == 'digits':
+                    result = int.from_bytes(edt, 'big')
+
+                elif epc == 'unit_amount_energy':
+                    if edt == b'\x00':
+                        result = 1.0
+                    elif edt == b'\x01':
+                        result = 0.1
+                    elif edt == b'\x02':
+                        result = 0.01
+                    elif edt == b'\x03':
+                        result = 0.001
+                    elif edt == b'\x04':
+                        result = 0.0001
+                    elif edt == b'\x0A':
+                        result = 10.0
+                    elif edt == b'\x0B':
+                        result = 100.0
+                    elif edt == b'\x0C':
+                        result = 1000.0
+                    elif edt == b'\x0D':
+                        result = 10000.0
+                    else:
+                        result = 0.0
+                    
+                elif epc == 'amount_energy_normal':
+                    result = int.from_bytes(edt, 'big')
+                    result *= sem_info['epc_coefficient'] * sem_info['unit_amount_energy']
+                    
+                elif epc == 'recent_amount_energy_norm':
+                    dt = sem.parse_datetime(edt[0:7])
+                    energy = int.from_bytes(edt[7:11], 'big')
+                    energy *= sem_info['epc_coefficient'] * sem_info['unit_amount_energy']
+                    result = [dt, energy]
+                
+                elif epc == 'hist_amount_energy1_norm':
+                    result = binascii.b2a_hex(edt)
+                    
+                sem_info[epc] = result
+                sys.stdout.write('[Get]: {}, {}\n'.format(epc, result))
+
+            else:  # Get失敗x10
+                sys.stdout.write('[Error]: Can not get {}.\n'.format(epc))
+                sem_exist = False
+                break
+        
+    if sem_exist:
         start = time.time() - 1000  # 初期値を1000s前に設定
         while True:
             try:

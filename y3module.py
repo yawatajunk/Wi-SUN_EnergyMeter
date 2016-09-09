@@ -376,14 +376,6 @@ class Y3Module(threading.Thread):
         return msg_list
 
 
-    @staticmethod
-    def decode(ascii_str):
-        """文字列(Ascii Hex)をデコードする
-            例 '616263' -> 'abc'
-        """
-        return bytes.fromhex(ascii_str).decode()
-
-
     def enqueue_message(self, msg_list):
         """メッセージをリストに追加"""
         self.msg_list_lock.acquire()

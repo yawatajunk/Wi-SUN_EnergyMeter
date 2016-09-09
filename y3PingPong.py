@@ -9,6 +9,7 @@
 #
 
 import argparse
+import binascii
 import random
 import RPi.GPIO as gpio
 from y3module import *
@@ -137,7 +138,7 @@ def y3cordinator(args):
                 led.oneshot()
                 msg_list = y3.dequeue_message()
                 if msg_list['COMMAND'] == 'ERXUDP' or msg_list['COMMAND'] == 'ERXTCP':
-                    msg = y3.decode(msg_list['DATA']).replace('Ping', 'Pong')
+                    msg = binascii.b2a_hex(msg_list['DATA'].decode().replace('Ping', 'Pong')
                     sys.stdout.write(msg + '\n')
 
                     if msg_list['COMMAND'] == 'ERXUDP':
@@ -250,7 +251,7 @@ def y3device(args):
 
                         if msg_list['COMMAND'] == 'ERXTCP':
                             pong_flag = True
-                            res = y3.decode(msg_list['DATA'])
+                            res = binascii.b2a_hex(msg_list['DATA']).decode()
                             if res.replace('Pong', 'Ping') == msg:
                                 end_time = time.time()
                                 lap_time = end_time - st_time
@@ -299,7 +300,7 @@ def y3device(args):
                     if y3.get_queue_size():
                         msg_list = y3.dequeue_message()
                         if msg_list['COMMAND'] == 'ERXUDP':
-                            res = y3.decode(msg_list['DATA'])
+                            res = binascii.b2a_hex(msg_list['DATA']).decode()
                             if res.replace('Pong', 'Ping') == msg:
                                 end_time = time.time()
                                 lap_time = end_time - st_time

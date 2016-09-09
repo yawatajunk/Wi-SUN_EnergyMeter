@@ -8,7 +8,7 @@
 # Copyright(C) 2016 pi@blue-black.ink
 #
 
-#from pprint import pprint
+import datetime
 
 
 # ECHONET Lite クラス
@@ -63,7 +63,7 @@ class EchonetLite:
         'production_no':        b'\x8d',
         'production_date':      b'\x8e',
         'current_time':         b'\x97',
-        'current_data':         b'\x98',
+        'current_date':         b'\x98',
         'chg_pty_map':          b'\x9d',
         'set_pty_map':          b'\x9e',
         'get_pty_map':          b'\x9f'}
@@ -249,3 +249,19 @@ class EchonetLiteSmartEnergyMeter(EchonetLite):
         self.FRAME_DICT = self.make_get_frame_dict()    # Get電文辞書を一括作成
 
         self.set_property(self.EPC_DICT['operation_status'])    # 仮のプロパティを設定
+
+    @staticmethod
+    def parse_datetime(dt_bytes):
+        """30分毎の計測値などに付随する日付&時間パーサー
+        dt_bytes: bytes型日付&時間 YYYYMMDDhhmmss (7 byte)
+        return: datetime.datetime型"""
+        
+        year = int.from_bytes(dt_bytes[0:2], 'big')
+        month = int.from_bytes(dt_bytes[2:3], 'big')
+        day = int.from_bytes(dt_bytes[3:4], 'big')
+        hour = int.from_bytes(dt_bytes[4:5], 'big')
+        minute = int.from_bytes(dt_bytes[5:6], 'big')
+        second = int.from_bytes(dt_bytes[6:7], 'big')
+        
+        return datetime.datetime(year, month, day, hour, minute, second)
+        
