@@ -146,6 +146,16 @@ class Y3ModuleSub(Y3Module):
                     self.search['timeout'] = 0
 
 
+def sem_get(epc):
+    """プロパティ値要求 'Get' """
+    global tid_counter
+    
+    frame = sem.GET_FRAME_DICT['get_' + epc]
+    tid_counter = tid_counter + 1 if tid_counter + 1 != 65536 else 0  # TICカウントアップ
+    frame = sem.change_tid_frame(tid_counter, frame)
+    res = y3.udp_send(1, ip6, True, y3.Y3_UDP_ECHONET_PORT, frame)
+
+
 def sem_get_getres(epc):
     """プロパティ値要求 'Get', 'GetRes'受信
         epc: EHONET Liteプロパティ
@@ -157,7 +167,13 @@ def sem_get_getres(epc):
         if y3.get_queue_size():     # データ受信
             msg_list = y3.dequeue_message() # 受信データ取り出し
             if msg_list['COMMAND'] == 'ERXUDP':
-                return msg_list['DATA']
+                parsed_data = sem.parse_frame(msg_list['DATA'])
+                if parsed_data['tid'] != tid_counter:
+                    errmsg = '[Error]: ECHONET Lite TID mismatch\n'
+                    sys.stdout.write(errmsg)
+                    return False
+                else:
+                    return msg_list['DATA']
             else:
                 sys.stdout.write('[Error]: Unknown data received.\n')
                 return False
@@ -169,14 +185,41 @@ def sem_get_getres(epc):
             time.sleep(0.01)
 
 
-def sem_get(epc):
-    """プロパティ値要求 'Get' """
+def sem_seti(epc, edt):
+    """プロパティ値書き込み要求（応答要） 'SetI'
+        epc: Echonet Liteプロパティ(bytes)
+        edt: Echonet Liteプロパティ値データ(bytes)
+        return: True(成功) / False(失敗)"""
+    
     global tid_counter
     
-    frame = sem.FRAME_DICT['get_' + epc]
     tid_counter = tid_counter + 1 if tid_counter + 1 != 65536 else 0  # TICカウントアップ
-    frame = sem.change_tid_frame(tid_counter, frame)
+    ptys = [[epc, edt]]
+    frame = sem.make_frame(tid_counter, sem.ESV_CODE['setc'], ptys)
     res = y3.udp_send(1, ip6, True, y3.Y3_UDP_ECHONET_PORT, frame)
+    
+    start = time.time()
+
+    while True:
+        if y3.get_queue_size():     # データ受信
+            msg_list = y3.dequeue_message() # 受信データ取り出し
+            if msg_list['COMMAND'] == 'ERXUDP':
+                parsed_data = sem.parse_frame(msg_list['DATA'])
+                if parsed_data['tid'] != tid_counter:
+                    errmsg = '[Error]: ECHONET Lite TID mismatch\n'
+                    sys.stdout.write(errmsg)
+                    return False
+                else:
+                    return msg_list['DATA']
+            else:
+                sys.stdout.write('[Error]: Unknown data received.\n')
+                return False
+
+        else:   # データ未受信
+            if time.time() - start > 20:    # タイムアウト 20s
+                sys.stdout.write('[Error]: Time out.\n')
+                return False
+            time.sleep(0.01)
 
 
 def pow_logfile_init(dt):
@@ -454,6 +497,13 @@ if __name__ == '__main__':
             
     if sem_exist:
         sem = EchonetLiteSmartEnergyMeter()
+        
+        
+        for i in range(10):
+            res = sem_seti(sem.EPC_DICT['day_hist_amount_energy1'], b'\x01')
+            if res:
+                break
+        
         
         get_list = ['operation_status', 'location', 'version', 'fault_status',
                     'manufacturer_code', 'production_no',

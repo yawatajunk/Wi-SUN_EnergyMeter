@@ -11,8 +11,9 @@
 import datetime
 
 
-# ECHONET Lite クラス
 class EchonetLite:
+    """# ECHONET Lite クラス"""
+    
     # ECHONETサービス(ESV)
     ESV_CODE = {
         'seti':          b'\x60',
@@ -86,15 +87,19 @@ class EchonetLite:
         self.frame['esv'] = b'\x00'
         self.frame['opc'] = b'\x00'
 
-    # TID
     def set_tid(self, num):
+        """TID設定"""
+        
         self.frame['tid'] = num.to_bytes(2, 'big')
     
     def get_tid(self):
+        """TID取得"""
+        
         return int.from_bytes(self.frame['tid'], 'big')
 
-    # SEOJ, DEOJ
     def set_eoj(self, sel, eoj):
+        """SEOJ, DEOJ設定"""
+        
         if sel.upper() == 'S':
             self.frame['seoj'] = eoj
         elif sel.upper() == 'D':
@@ -103,6 +108,8 @@ class EchonetLite:
             raise ValueError(sel)
     
     def get_eoj(self, sel):
+        """SEOJ, DEOJ取得"""
+        
         if sel.upper() == 'S':
             return self.frame['seoj']
         elif sel.upper() == 'D':
@@ -110,57 +117,71 @@ class EchonetLite:
         else:
             raise ValueError(sel)
     
-    # ESV      
     def set_esv(self, esv):
+        """ESV設定"""
+        
         self.frame['esv'] = esv
         
     def get_esv(self):
+        """ESV取得"""
+        
         return self.frame['esv']
     
-    # プロパティ列を空にする
     def reset_property(self):
+        """プロパティ列を空にする"""
+        
         self.frame['ptys'] = []
         self.frame['opc'] = b'\x00'
 
-    # プロパティを作成(dict形式)
     @staticmethod
     def make_property(epc, edt = b''):
+        """プロパティを作成(dict形式)"""
+        
         return {'epc': epc, 'pdc': len(edt).to_bytes(1, 'big'), 'edt': edt}
 
-    # プロパティを追加する
     def set_property(self, epc, edt = b''):
+        """プロパティを追加する"""
+        
         pty = self.make_property(epc, edt)
         self.frame['ptys'].append(pty)
         self.frame['opc'] = len(self.frame['ptys']).to_bytes(1, 'big')
 
-    # n番目のプロパティを取得 （dict形式）
     def get_property(self, n):
+        """n番目のプロパティを取得 （dict形式）"""
+        
         return self.frame['ptys'][n]
 
-    # n番目のプロパティを取得 (bytes形式)
     def get_serialized_property(self, n):
+        """n番目のプロパティを取得 (bytes形式)"""
+        
+        
         pty = self.get_property(n)
         return pty['epc'] + pty['pdc'] + pty['edt']
 
-    # ECHONET Lite電文を取得 (dict形式)
     def get_frame(self):
+        """ECHONET Lite電文を取得 (dict形式)"""
+        
         return self.frame
     
-    # ECHONET Lite電文を取得 (bytes形式)
     def get_serialized_frame(self):
+        """ECHONET Lite電文を取得 (bytes形式)"""
+        
         res = self.frame['ehd'] + self.frame['tid'] + self.frame['seoj'] + self.frame['deoj'] + \
               self.frame['esv'] + self.frame['opc']
         for i in range(len(self.frame['ptys'])):
             res += self.get_serialized_property(i)
         return res
 
-    # ECHONET Lite電文かどうか判断
     @staticmethod
     def is_frame(frame):
+        """ECHONET Lite電文かどうか判断"""
+        
         return True if frame[0:2] == b'\x10\x81' else False        
 
-    # TID, ESV及びプロパティからECHONET Lite電文を組み立てる
-    def make_frame(self, tid, esv, ptys):    #  ptys: [[epc1, edt1], [epc2, edt2], ....]
+    def make_frame(self, tid, esv, ptys):
+        """TID, ESV及びプロパティからECHONET Lite電文を組み立てる
+        ptys: [[epc1, edt1], [epc2, edt2], ....]"""
+        
         self.set_tid(tid)        
         self.frame['esv'] = esv
         self.reset_property()
@@ -168,22 +189,34 @@ class EchonetLite:
             self.set_property(pty[0], pty[1])
         return self.get_serialized_frame()
 
-    # ECHONET Lite 電文のTIDを変更
     def change_tid_frame(self, tid, frame):
+        """ECHONET Lite 電文のTIDを変更"""
+
         self.set_tid(tid)
         new_frame = frame[0:2] + self.frame['tid'] + frame[4:len(frame)]
         return new_frame
 
-    # ECV辞書'EPC_DICT'を元に，Get電文を一括作成する。
     def make_get_frame_dict(self):
+        """ECV辞書'EPC_DICT'を元に，Get電文を一括作成する。"""
+        
         frame_dict = {}
         for key in self.EPC_DICT.keys():
             frame = self.make_frame(0, self.ESV_CODE['get'], [[self.EPC_DICT[key], b'']])
             frame_dict.update({'get_'+key: frame})
         return frame_dict
 
-    # ECHONET Lite 電文パーサー
+    def make_set_frame_dict(self):
+        """ECV辞書'EPC_DICT'を元に，Set電文を一括作成する。"""
+        
+        frame_dict = {}
+        for key in self.EPC_DICT.keys():
+            frame = self.make_frame(0, self.ESV_CODE['setc'], [[self.EPC_DICT[key], b'']])
+            frame_dict.update({'set_'+key: frame})
+        return frame_dict
+
     def parse_frame(self, res):
+        """ECHONET Lite 電文パーサー"""
+        
         bt_res = bytes.fromhex(res)
         if len(bt_res) < 12: # EHD1～OPC:12byte
             return False
@@ -215,8 +248,9 @@ class EchonetLite:
         return frame
 
 
-# ECHONET Lite スマート電力量メータクラス
 class EchonetLiteSmartEnergyMeter(EchonetLite):
+    """ECHONET Lite スマート電力量メータクラス"""
+
     CLS_LVSM_CODE = b'\x88'      # クラスコード（低圧スマート電力量メータ）
 
     ## EPC
@@ -245,8 +279,8 @@ class EchonetLiteSmartEnergyMeter(EchonetLite):
         self.frame['esv'] = self.ESV_CODE['get']
         self.frame['opc'] = '\x01'
 
-        self.EPC_DICT.update(self.LVSM_EPC_DICT)        # スーパークラスと自クラスのEPCを連結        
-        self.FRAME_DICT = self.make_get_frame_dict()    # Get電文辞書を一括作成
+        self.EPC_DICT.update(self.LVSM_EPC_DICT)        # スーパークラスと自クラスのEPCを連結
+        self.GET_FRAME_DICT = self.make_get_frame_dict()        # Get電文辞書を一括作成
 
         self.set_property(self.EPC_DICT['operation_status'])    # 仮のプロパティを設定
 
@@ -264,4 +298,3 @@ class EchonetLiteSmartEnergyMeter(EchonetLite):
         second = int.from_bytes(dt_bytes[6:7], 'big')
         
         return datetime.datetime(year, month, day, hour, minute, second)
-        
