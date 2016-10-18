@@ -1,6 +1,6 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.3a  
+Branch 0.5a  
 
 
 ## Overview
@@ -8,8 +8,6 @@ Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続してスマートメ�
 
 ## Screenshot
 ![Wi-SUN_EnergyMeter Screenshot](http://blue-black.ink/wp-content/uploads/2016/08/0d0323de65984b069304f0c44ba1477a.png)
-
-
 
 ## Description
 ### スマートメーター，HEMS，ECHONET Lite
@@ -34,8 +32,7 @@ Wi-SUNは，920 MHz帯を使い，壁を通過しやすく建物の陰にも回�
 
 ### Project
 本プロジェクトの目的は，Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続し、スマートメーターと無線通信を行い、電力値等を取得することです。  
-ECHONET Liteにおいて、一般家庭のスマートメーターは**低圧スマート電力量メータークラス**という機器オブジェクトとして規定されており、ECHONET Liteの電文フォーマットに則り、瞬時電力・電流、30分毎の電力量計量値等を取得できます。本プロジェクトでは瞬時電力を取得するプログラムをPythonで構築しました。  
-
+ECHONET Liteにおいて、一般家庭のスマートメーターは**低圧スマート電力量メータークラス**という機器オブジェクトとして規定されており、ECHONET Liteの電文フォーマットに則り、瞬時電力・電流、30分毎の電力量計量値等を取得できます。本プロジェクトでは瞬時電力を取得し、そのログを取るプログラムをPythonで構築しました。  
 さらに、取得したデータを配信するためのWEBサーバを、Node.js + Express + socket.ioで構築しました。
 
 
@@ -45,7 +42,7 @@ ECHONET Liteにおいて、一般家庭のスマートメーターは**低圧ス
     * Pythonモジュール（Raspbian JESSIEには組込済）
 	    * pyserial
 	    * RPi.GPIO
-	* Node.js v4.4.7 LTS
+	* Node.js v4.4.7 以上
 		* socket.io
 		* express
 * Wi-SUNモジュール BP35A1 (ROHM)
@@ -61,26 +58,18 @@ Raspberry PiとBP35A1との接続は次のファイルを参照してくださ�
 
 ### GPIO
 * GPIO18: BP35A1のリセットに接続します。  
-* GPIO4: LEDを接続します。省略できます。
+* GPIO4: LEDを接続します(省略可)。
 * GPIO14, GPIO15: BP35A1とのシリアル通信に使用します。これらのピンはデフォルトでシステムログインのために使用されているため次の手順で停止します。  
 
-`$ sudo nano /boot/cmdline.txt`でファイルを開き，`console=serial0,115200`の部分を削除します。  
-
-次のコマンドを実施します。
-```
-$ sudo systemctl stop serial-getty@ttyAMA0.service
-$ sudo systemctl disable serial-getty@ttyAMA0.service
-$ sudo reboot
-```
-
+`$ sudo raspi-config`でToolを起動し、`9 Advanced Options >> A7 Serifal >> ＜いいえ＞`を選択します。  
 
 ## Install
-git及びnode.js v4.4.7 LTSがインストールされている必要です。  
-2組の(BP35A1 + Raspberry Pi)の適当なディレクトリで，次のコマンドを実行します。  
+git及びnode.js v4.4.7がインストールされている必要があります。  
+また、本プロジェクトをインストールしたい適当なディレクトリで、次の手順でインストールします。
 ```
 $ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
-$ git checkout 0.3a
+$ git checkout 0.5a
 $ cd sem_app
 $ npm install
 ```
@@ -91,56 +80,28 @@ $ npm install
 * echonet_lite.py: ECHONET Liteクラス  
 * LICENCE.md: MITライセンス  
 * README.md: このファイル  
+* sem_appフォルダ: Node.jsによるWEBサーバ関連  
 * sem_com.py: スマート電力量メーター通信プログラム
 * user_conf.py: スマート電力量メーターのID、パスワード等の設定ファイル
 * wiring.png: 実体配線図  
 * y3module.py: BP35A1通信クラス  
-* y3PingPong.py: サンプルプログラム  
-* sem_appフォルダ: Node.jsによるWEBサーバ関連
-
-
-## サンプルプログラム（y3PingPong.py）
-2組の(BP35A1 + Raspberry Pi)で相互に通信を行うサンプルプログラムです。  
-
-### Usage
-1台（raspi1と呼びます）をコーディネーターとして起動します。  
-`./y3PingPong.py --mode c`
-
-もう1台(raspi2と呼びます)をデバイスとして起動するとUDPによる送受信が始まります。  
-`./y3PingPong.py --mode d`  
-
-TCPで送受信するには、raspi2にて、上のコマンドに代わりに次のコマンドを実行します。  
-`./y3PingPong.py --mode d --transport t`  
-
-プログラムを終了するときは，`CTRL`と`c`を同時に押します。  
-
-PingPongの全オプションは次のとおりです。  
-```
-$ ./y3PingPong.py --help 
-usage: y3PingPong.py [-h] [-m {c,C,d,D}] [-i ID] [-t {u,U,t,T}]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -m {c,C,d,D}, --mode {c,C,d,D}
-                        select [c]ordinator or [d]evice
-  -i ID, --id ID        pairing ID
-  -t {u,U,t,T}, --transport {u,U,t,T}
-                        select [u]dp or [t]cp
-```
-
 
 ## スマートメーター通信プログラム (sem_com.py)  
 スマートメーターから消費電力を受信するプログラムです。  
 
 ### Usage
 user_conf.pyを編集し、スマートメーターのID及びパスワードを設定します。  
+SEM_INTERVALには瞬時電力を取得する時間間隔[秒]を設定します。0を設定すれば最大頻度でデータを取得することができます。  
+SEM_DURATIONは、アクティブスキャンのとき、チャンネルごとのスキャン時間を設定するものです。数値が1増すごとにスキャン時間が2倍になります。闇雲に大きい値を設定するとスキャン時間が大幅に長くなりますのでご注意ください。アクティブスキャンでスマートメーターが見つかりずらいときは、+1してお試しください。なお、アクティブスキャンに数十秒かかってとしてもそれが正常です。じっくり気長に待ちましょう。
 ```
 SEM_ROUTEB_ID = '00000000000000000000000000000000'
 SEM_PASSWORD = 'XXXXXXXXXXXX'
+SEM_INTERVAL = 3
+SEM_DURATION = 6
 ```
 
 次のコマンドでプログラムを起動します。  
-スマメとの距離が遠かったり電波の状態が良くないと、アクティブスキャンに時間がかかることがあります。  
+スマメとの距離が遠かったり電波の状態が良くないと、アクティブスキャンをリトライするため時間がかかることがあります。  
 暫く待つと、瞬時電力が表示されます。  
 プログラムを停止するときは、`CTRL`と`c`を同時に押します。
 ```
@@ -179,18 +140,14 @@ Done.
 
 
 ## 消費電力を配信するWEBサーバ
-Node.js + Express + socket.ioでWEBサーバを構築しました。
-また、画面デザインの大枠作成にはJetstrapを、グラフの表示にはHighchartsを使っています。  
+Node.js + ExpressでWEBサーバを構築しました。
+また、画面デザインの大枠作成にはJetstrapを、グラフの表示にはHighcharts, Highstockを使っています。  
 プロジェクトをインストールした、起点となるディレクトリに移動します。
 `$ cd /path/to/Wi-SUN_EnergyMeter`
 
 ### 設定ファイル
 ####「./user_conf.py」####
-スマートメーターのID及びパスワードを設定します。
-```
-SEM_ROUTEB_ID = '00000000000000000000000000000000'
-SEM_PASSWORD = 'XXXXXXXXXXXX'
-```
+先述のとおり、スマートメータのIDとパスワードを設定します。  
 
 ####「./sem_app/bin/www」####
 WEBサーバのポート番号を設定します。
@@ -216,7 +173,8 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 ## History  
 0.1a: 初版  
 0.2a: 軽微な変更，README.mdを刷新  
-0.3a: スマメ通信プログラム＆配信WEBサーバ追加  
+0.3a: スマートメーター通信プログラム＆配信WEBサーバ追加  
+0.5a: 瞬時電力の履歴を記録。WEB表示機能を追加  
 
 
 ## Reference
