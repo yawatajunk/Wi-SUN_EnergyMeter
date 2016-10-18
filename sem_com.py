@@ -28,12 +28,12 @@ TMP_LOG_DIR = '/tmp/'               # 一次ログディレクトリ
 LOG_DIR = 'sem_app/public/logs/'    # ログ用ディレクトリ, 本スクリプトからの相対パス
 SOCK_FILE = TMP_LOG_DIR + 'sem.sock'    # UNIXソケット
 TMP_LOG_FILE = TMP_LOG_DIR + 'sem.csv'  # 一時ログファイル
-POW_DAYS_JSON_FILE = LOG_DIR + 'pow_days.json'  # JSON形式の電力ログファイル
 
+POW_DAYS_JSON_FILE = LOG_DIR + 'pow_days.json'  # JSON形式の電力ログファイル
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
 POW_DAY_LOG_FMT = '%Y%m%d'      #        日時フォーマット
 
-# 低圧スマート電力量計 情報保存用
+# 低圧スマート電力量計 情報保存用リスト
 sem_info = {}
 
 
@@ -187,6 +187,9 @@ def sem_get_getres(epc):
 
 def sem_seti(epc, edt):
     """プロパティ値書き込み要求（応答要） 'SetI'
+        ---------------------------------
+        　(注)未検証　(注)未検証　(注)未検証
+        ---------------------------------
         epc: Echonet Liteプロパティ(bytes)
         edt: Echonet Liteプロパティ値データ(bytes)
         return: True(成功) / False(失敗)"""
@@ -389,6 +392,7 @@ def arg_parse():
 
 
 if __name__ == '__main__':
+
     args = arg_parse()
     if args.delay:  # スクリプトをスタートするまでの待ち時間。sem_appとの連携時にsem_com.pyのスタートを遅らせる。
         if isinstance(args.delay, int):
@@ -406,7 +410,7 @@ if __name__ == '__main__':
     
     sys.stdout.write('Log files setup...\n')
     result = pow_logfile_init(saved_dt)     # ログファイル初期化
-
+    
     if not result:
         sys.stdout.write('[Error]: Log file error\n')
         sys.exit(-1)
@@ -452,6 +456,7 @@ if __name__ == '__main__':
     if sem_exist:
         ch = channel_list[0]
 
+        print(ch)
         sys.stdout.write('Energy Meter: [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]\n'.format(ch['Channel'],
                          ch['Addr'], ch['LQI'], ch['Pan ID']))
 
@@ -493,18 +498,10 @@ if __name__ == '__main__':
             
             if pana_done:
                 break
-
             
     if sem_exist:
         sem = EchonetLiteSmartEnergyMeter()
-        
-        
-        for i in range(10):
-            res = sem_seti(sem.EPC_DICT['day_hist_amount_energy1'], b'\x01')
-            if res:
-                break
-        
-        
+                
         get_list = ['operation_status', 'location', 'version', 'fault_status',
                     'manufacturer_code', 'production_no',
                     'current_time', 'current_date', 
