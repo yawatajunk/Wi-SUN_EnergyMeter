@@ -7,7 +7,11 @@ Branch 0.5a
 Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続してスマートメーターと無線通信を行い、消費電力を取得するPythonスクリプト。さらに、その取得データをリアルタイムで配信するWEBサーバです。
 
 ## Screenshot
-![Wi-SUN_EnergyMeter Screenshot](http://blue-black.ink/wp-content/uploads/2016/08/0d0323de65984b069304f0c44ba1477a.png)
+瞬時電力  
+![Wi-SUN_EnergyMeter Screenshot 1](http://blue-black.ink/wp-content/uploads/2016/10/IMG_5488.png)
+
+瞬時電力履歴  
+![Wi-SUN_EnergyMeter Screenshot 2](http://blue-black.ink/wp-content/uploads/2016/10/IMG_5489.png)
 
 ## Description
 ### スマートメーター，HEMS，ECHONET Lite
@@ -106,32 +110,25 @@ SEM_DURATION = 6
 プログラムを停止するときは、`CTRL`と`c`を同時に押します。
 ```
 $ ./sem_com.py
+Log files setup...
 Wi-SUN reset...
-(1/10) Active scan start with a duration of 6...
-(2/10) Active scan start with a duration of 6...
-(3/10) Active scan start with a duration of 6...
-Energy Meter: [Ch.0x37, Addr.0123456789ABCDEF, LQI.146, PAN.0x1234]
-Set channel to 0x37
-IP6 address is '0000:0000:0000:0000:0000:0000:0000:0000'
-Set PAN ID to 0x1234
-(1/10) PANA connection...
-Done.
+(1/10) Active scan with a duration of 6...
 .
 .
-（略）
 .
 .
-[    8] 1680 W
-[    9] 1696 W
-[   10] 1696 W
-[   11] 1688 W
-[   12] 1696 W
-[   13] 1696 W
-[   14] 1696 W
-[   15] 1704 W
-[   16] 1712 W
-[   17] 1712 W
-[   18] 1704 W
+(略)
+.
+.
+.
+.
+[   18]  960 W
+[   19]  928 W
+[   20]  912 W
+[   21]  912 W
+[   22]  904 W
+[   23]  912 W
+[   24]  920 W
 .
 .
 .
