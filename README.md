@@ -5,7 +5,6 @@ Branch 0.5a
 
 ## Overview
 Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続してスマートメーターと無線通信を行い、消費電力を取得するPythonスクリプト。さらに、その取得データをリアルタイムで配信するWEBサーバです。
-<<<<<<< HEAD
 
 ## Screenshot
 瞬時電力  
@@ -110,7 +109,6 @@ SEM_DURATION = 6
 暫く待つと、瞬時電力が表示されます。  
 プログラムを停止するときは、`CTRL`と`c`を同時に押します。
 ```
-<<<<<<< HEAD
 $ ./sem_com.py
 Log files setup...
 Wi-SUN reset...
@@ -167,64 +165,6 @@ WEBサーバを起動します。
 ### WEBブラウザで確認
 WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセスします。例えば次のとおりです。  
 `http://raspi0.local:3610/`
-=======
-$ ./sem_com.py
-Log files setup...
-Wi-SUN reset...
-(1/10) Active scan with a duration of 6...
-.
-.
-.
-.
-(略)
-.
-.
-.
-.
-[   18]  960 W
-[   19]  928 W
-[   20]  912 W
-[   21]  912 W
-[   22]  904 W
-[   23]  912 W
-[   24]  920 W
-.
-.
-.
-.
-```
-
-
-## 消費電力を配信するWEBサーバ
-Node.js + ExpressでWEBサーバを構築しました。
-また、画面デザインの大枠作成にはJetstrapを、グラフの表示にはHighcharts, Highstockを使っています。  
-プロジェクトをインストールした、起点となるディレクトリに移動します。
-`$ cd /path/to/Wi-SUN_EnergyMeter`
-
-### 設定ファイル
-####「./user_conf.py」####
-先述のとおり、スマートメータのIDとパスワードを設定します。  
-
-####「./sem_app/bin/www」####
-WEBサーバのポート番号を設定します。
-```
-//
-// ポート番号設定
-//
-var PORT_NO = '3610';
-```
-
-### 起動方法
-WEBサーバを起動します。  
-`$ ./sem_app/bin/www`
-
-スマートメーター通信プログラムを起動します。  
-`$ ./sem_com.py`
-
-### WEBブラウザで確認
-WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセスします。例えば次のとおりです。  
-`http://raspi0.local:3610/`
->>>>>>> cb84f5df466555595fd51113783460450b5e5172
 
 
 ## History  
