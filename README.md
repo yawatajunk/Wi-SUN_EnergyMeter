@@ -57,8 +57,8 @@ ECHONET Liteにおいて、一般家庭のスマートメーターは**低圧ス
 Raspberry PiとBP35A1との接続は次のファイルを参照してください。  
 なお、BP35A1とブレッドボードは、ピッチ変換アダプターボードBP35A7Aを使い，CN1及びCN2で接続します。  
 
-* ![wiring.jpg](wiring.jpg): 実体配線図
-* ![circuit.jpg](circuit.jpg): 回路図
+* [wiring.jpg](wiring.png): 実体配線図
+* [circuit.jpg](circuit.png): 回路図
 
 ### GPIO
 * GPIO18: BP35A1のリセットに接続します。  
