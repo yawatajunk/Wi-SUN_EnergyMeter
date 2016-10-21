@@ -8,10 +8,10 @@ Wi-SUNモジュールBP35A1(ROHM)をRaspberry Piに接続してスマートメ�
 
 ## Screenshot
 瞬時電力  
-![Wi-SUN_EnergyMeter Screenshot 1](http://blue-black.ink/wp-content/uploads/2016/10/IMG_5488.png)
+![Wi-SUN_EnergyMeter Screenshot 1](screenshot1.png)
 
 瞬時電力履歴  
-![Wi-SUN_EnergyMeter Screenshot 2](http://blue-black.ink/wp-content/uploads/2016/10/IMG_5489.png)
+![Wi-SUN_EnergyMeter Screenshot 2](screenshot2.png)
 
 ## Description
 ### スマートメーター，HEMS，ECHONET Lite
@@ -174,7 +174,7 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 0.5a: 瞬時電力の履歴を記録。WEB表示機能を追加  
 
 ## Support Site
-[blue-black.ink](http://blue-black.ink/?p=2827)
+[blue-black.ink/?p=2827](http://blue-black.ink/?p=2827)  
 
 ## Reference
 [Raspberry Pi](https://www.raspberrypi.org)  
@@ -184,4 +184,5 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 [Express](https://expressjs.com)  
 [socket.io](http://socket.io/)  
 [Jetstrap](https://jetstrap.com)  
-[Highcharts](http://www.highcharts.com)
+[Highcharts](http://www.highcharts.com)  
+[Highstock](http://www.highcharts.com/products/highstock)  
