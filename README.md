@@ -1,6 +1,6 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.5a  
+Branch 0.6a  
 
 
 ## Overview
@@ -42,19 +42,14 @@ ECHONET Liteにおいて、一般家庭のスマートメーターは**低圧ス
 
 ## Requirement
 * Raspberry Pi
-    * Raspbian JESSIE
-    * Pythonモジュール（Raspbian JESSIEには組込済）
-	    * pyserial
-	    * RPi.GPIO
-	* Node.js v4.4.7 以上
-		* socket.io
-		* express
+    * Raspbian (Stretch with Desktop, 2017-09-07で動作確認)  
+	* Node.js (v6.11.4で動作確認)
 * Wi-SUNモジュール BP35A1 (ROHM)
 
 
 ## Raspberry Pi Setup
 ### Circuit
-Raspberry PiとBP35A1との接続は次のファイルを参照してください。  
+Raspberry PiとBP35A1との接続は次のファイルを参照してください。 
 なお、BP35A1とブレッドボードは、ピッチ変換アダプターボードBP35A7Aを使い，CN1及びCN2で接続します。  
 
 * [wiring.jpg](wiring.png): 実体配線図
@@ -63,17 +58,18 @@ Raspberry PiとBP35A1との接続は次のファイルを参照してくださ�
 ### GPIO
 * GPIO18: BP35A1のリセットに接続します。  
 * GPIO4: LEDを接続します(省略可)。
-* GPIO14, GPIO15: BP35A1とのシリアル通信に使用します。これらのピンはデフォルトでシステムログインのために使用されているため次の手順で停止します。  
+* GPIO14, GPIO15: BP35A1とのシリアル通信に使用します。  
+これらのピンはデフォルトでシステムログインで使用されているため，設定を変更する必要があります。  
+ラズパイの種類やRaspbianのバージョンによって設定方法が異なります。別途，情報収集をお願いします。  
 
-`$ sudo raspi-config`でToolを起動し、`9 Advanced Options >> A7 Serifal >> ＜いいえ＞`を選択します。  
 
 ## Install
-git及びnode.js v4.4.7がインストールされている必要があります。  
-また、本プロジェクトをインストールしたい適当なディレクトリで、次の手順でインストールします。
+git及びnode.jsがインストールされている必要があります。 
+本プロジェクトをインストールしたい適当なディレクトリで、次の手順でインストールします。  
 ```
 $ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
-$ git checkout 0.5a
+$ git checkout 0.6a
 $ cd sem_app
 $ npm install
 ```
@@ -89,6 +85,7 @@ $ npm install
 * user_conf.py: スマート電力量メーターのID、パスワード等の設定ファイル
 * wiring.png: 実体配線図  
 * y3module.py: BP35A1通信クラス  
+
 
 ## スマートメーター通信プログラム (sem_com.py)  
 スマートメーターから消費電力を受信するプログラムです。  
@@ -172,6 +169,10 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 0.2a: 軽微な変更，README.mdを刷新  
 0.3a: スマートメーター通信プログラム＆配信WEBサーバ追加  
 0.5a: 瞬時電力の履歴を記録。WEB表示機能を追加  
+0.6a: node.jsとモジュールをアップデート  
+      sem_com.pyの安定性向上
+      UNIXドメインソケット及びログファイル周りを改善  
+
 
 ## Support Site
 [blue-black.ink/?p=2827](http://blue-black.ink/?p=2827)  

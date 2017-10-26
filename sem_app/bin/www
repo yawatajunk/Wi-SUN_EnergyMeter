@@ -108,20 +108,20 @@ var power_update = false;
 
 var io = require('socket.io').listen(server);
 io.on('connection', function(socket) {
-	console.log('[websocket]: Connected.');
-	
-  	socket.on("disconnect", function () {
-  		console.log('[websocket]: Disconnected.');
-  	});
-  	
-  	function powerUpdate() {
-  		if (power_update) {
-  			power_Update = false;
-  			socket.emit("inst-power", JSON.stringify({'time': rcd_time, 'power': inst_power}));
-  		}
-  		setTimeout(powerUpdate, 100);
-  	}
-  	powerUpdate();
+    console.log('[websocket]: Connected.');
+    
+    socket.on("disconnect", function () {
+        console.log('[websocket]: Disconnected.');
+    });
+
+    function powerUpdate() {
+        if (power_update) {
+            power_Update = false;
+            socket.emit("inst-power", JSON.stringify({'time': rcd_time, 'power': inst_power}));
+        }
+        setTimeout(powerUpdate, 100);
+    }
+    powerUpdate();
 });
 
 
@@ -130,40 +130,41 @@ io.on('connection', function(socket) {
 // スマート電力量メータ  ソケット通信
 //
 //
-var net = require('net');
-var fs = require('fs');
+const net = require('net');
+const fs = require('fs');
 
-var sock_file = '/tmp/sem.sock'	// UNIXソケットファイル
-
-// ソケットファイルの削除
-fs.unlink(sock_file, function (err) {
-	// The file doesn't exist.
-	// Do nothing.
-});
+const sock_file = '/tmp/sem.sock'     // UNIXソケットファイル
 
 // ソケットサーバ起動
-const sock_server = net.createServer(function (c) {
-	console.log('[sock]: client connected');
+fs.stat(sock_file, function(err) {
+    if (!err) {
+        fs.unlinkSync(sock_file);     // 既存のソケットファイルを消去
+        console.log('[sock]: unlink old socket');
+    }
+    
+    const sock_server = net.createServer(function (c) {
+        console.log('[sock]: client connected');
   
-  	// 接続解除
-  	c.on('end', () => {
-    	console.log('[sock]: client disconnected');
-  	});
+        // 接続解除
+        c.on('end', () => {
+            console.log('[sock]: client disconnected');
+        });
   
-  	// データ受信
-  	c.on('data', (data) => {
-  		var d = JSON.parse(data);
-  		rcd_time = d.time;
-  		inst_power = d.power;
-  		console.log("[sock]: Received: '" + inst_power + "'");
-  		power_update = true;
-  	});
-});
+        // データ受信
+        c.on('data', (data) => {
+            var d = JSON.parse(data);
+            rcd_time = d.time;
+            inst_power = d.power;
+            console.log("[sock]: Received: '" + inst_power + "'");
+            power_update = true;
+        });
+    });
+    
+    sock_server.on('error', function (err) {
+        throw err;
+    });
 
-sock_server.on('[sock]: error', function (err) {
-  throw err;
-});
-
-sock_server.listen(sock_file, () => {
-  console.log('[sock]: server bound');
+    sock_server.listen(sock_file, () => {
+        console.log('[sock]: server bound');
+    });
 });

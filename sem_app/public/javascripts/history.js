@@ -12,8 +12,8 @@ $(function () {
             rangeSelector: {
                 buttons: [{
                     type: 'hour',
-                    count: 1,
-                    text: '1h'
+                    count: 6,
+                    text: '6h'
                 }, {
                     type: 'hour',
                     count: 12,
@@ -30,19 +30,19 @@ $(function () {
                     type: 'all',
                     text: 'All'
                 }],
-                selected: 2
+                selected: 3
             },
             
             credits: {
-			    enabled: false
-		    },
+                enabled: false
+            },
 
             title : {
                 text : null
             },
 
             scrollbar : {
-                enabled : false
+                enabled : true
             },
             
             series : [{
@@ -70,7 +70,7 @@ $(function () {
 
             yAxis : {
                 min: 0,
-                max: 6000
+                max: 12000
             }
         });
     });

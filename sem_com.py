@@ -168,12 +168,16 @@ def sem_get_getres(epc):
             msg_list = y3.dequeue_message() # 受信データ取り出し
             if msg_list['COMMAND'] == 'ERXUDP':
                 parsed_data = sem.parse_frame(msg_list['DATA'])
-                if parsed_data['tid'] != tid_counter:
-                    errmsg = '[Error]: ECHONET Lite TID mismatch\n'
-                    sys.stdout.write(errmsg)
-                    return False
+                if parsed_data:
+                    if parsed_data['tid'] != tid_counter:
+                        errmsg = '[Error]: ECHONET Lite TID mismatch\n'
+                        sys.stdout.write(errmsg)
+                        return False
+                    else:
+                        return msg_list['DATA']
                 else:
-                    return msg_list['DATA']
+                    sys.stdout.write('[Error]: ECHONET Lite frame error.\n')
+                    return False
             else:
                 sys.stdout.write('[Error]: Unknown data received.\n')
                 return False
@@ -208,12 +212,16 @@ def sem_seti(epc, edt):
             msg_list = y3.dequeue_message() # 受信データ取り出し
             if msg_list['COMMAND'] == 'ERXUDP':
                 parsed_data = sem.parse_frame(msg_list['DATA'])
-                if parsed_data['tid'] != tid_counter:
-                    errmsg = '[Error]: ECHONET Lite TID mismatch\n'
-                    sys.stdout.write(errmsg)
-                    return False
+                if parsed_data:
+                    if parsed_data['tid'] != tid_counter:
+                        errmsg = '[Error]: ECHONET Lite TID mismatch\n'
+                        sys.stdout.write(errmsg)
+                        return False
+                    else:
+                        return msg_list['DATA']
                 else:
-                    return msg_list['DATA']
+                    sys.stdout.write('[Error]: ECHONET Lite frame error.\n')
+                    return False
             else:
                 sys.stdout.write('[Error]: Unknown data received.\n')
                 return False
@@ -255,7 +263,7 @@ def pow_logfile_init(dt):
                 return False
         
         if not os.path.exists(pkl_filename):    # 電力ログ(pickle)が無かったら作成する
-            result = csv2pickle(csv_filename, pkl_filename)
+            result = csv2pickle(csv_filename, pkl_filename, t)
             if not result:
                 return False       
 
@@ -290,7 +298,7 @@ def pow_logfile_maintainance(last_dt, new_dt):
         file_cat(today_csv_file, TMP_LOG_FILE)
         os.remove(TMP_LOG_FILE)         # 一時ログファイルを削除
         
-        csv2pickle(today_csv_file, today_pkl_file)  # pickle更新
+        csv2pickle(today_csv_file, today_pkl_file, last_dt)  # pickle更新
 
         if last_dt.day != new_dt.day:   # 日付変更
             pow_logfile_init(new_dt)    # 電力ログ初期化
@@ -313,7 +321,7 @@ def file_cat(file_a, file_b):
         return False
 
 
-def csv2pickle(csvfile, pklfile):
+def csv2pickle(csvfile, pklfile, dt):
     """csvファイルをpickleファイルに変換"""
     try:
         fcsv = open(csvfile, 'r')
@@ -321,10 +329,11 @@ def csv2pickle(csvfile, pklfile):
         data = fcsv.readlines()
     except:
         return False
-        
-    if data == []:      # 日付変更時でcsvファイルが空の場合
-        dt = datetime.date.today()    # 現時刻から、0時0分のタイムスタンプを作成
+
+    if data == []:      # 新規作成のよりcsvファイルが空の場合
+        # 引数dt(datetime型)から、0時0分のタイムスタンプを作成
         ts_origin = datetime.datetime.combine(dt, datetime.time(0, 0)).timestamp()
+        print('csv2pickle!:' + csvfile)   # debug
     else:
         ts = int(data[0].strip().split(',')[0])     # ログからタイムスタンプを取得
         dt = datetime.datetime.fromtimestamp(ts)    # 0時0分のタイムスタンプを作成
@@ -456,7 +465,6 @@ if __name__ == '__main__':
     if sem_exist:
         ch = channel_list[0]
 
-        print(ch)
         sys.stdout.write('Energy Meter: [Ch.0x{:02X}, Addr.{}, LQI.{}, PAN.0x{:04X}]\n'.format(ch['Channel'],
                          ch['Addr'], ch['LQI'], ch['Pan ID']))
 
@@ -515,8 +523,11 @@ if __name__ == '__main__':
                 data = sem_get_getres(epc)
                 if data:
                     parsed_data = sem.parse_frame(data)
-                    edt = parsed_data['ptys'][0]['edt']
-                    break
+                    if parsed_data:
+                        edt = parsed_data['ptys'][0]['edt']
+                        break
+                    else:
+                        continue    # Get失敗　再試行
                 else:   # Get失敗 再試行
                     continue
             

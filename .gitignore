@@ -3,3 +3,4 @@ sem_app/node_modules/
 sem_app/public/logs/
 !sem_app/public/logs/dummy
 user_conf_bak.py
+.DS_Store
