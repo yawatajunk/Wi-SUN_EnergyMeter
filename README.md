@@ -140,10 +140,10 @@ Node.js + ExpressでWEBサーバを構築しました。
 `$ cd /path/to/Wi-SUN_EnergyMeter`
 
 ### 設定ファイル
-####「./user_conf.py」####
+####「./user_conf.py」
 先述のとおり、スマートメータのIDとパスワードを設定します。  
 
-####「./sem_app/bin/www」####
+####「./sem_app/bin/www」
 WEBサーバのポート番号を設定します。
 ```
 //

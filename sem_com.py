@@ -333,7 +333,6 @@ def csv2pickle(csvfile, pklfile, dt):
     if data == []:      # 新規作成のよりcsvファイルが空の場合
         # 引数dt(datetime型)から、0時0分のタイムスタンプを作成
         ts_origin = datetime.datetime.combine(dt, datetime.time(0, 0)).timestamp()
-        print('csv2pickle!:' + csvfile)   # debug
     else:
         ts = int(data[0].strip().split(',')[0])     # ログからタイムスタンプを取得
         dt = datetime.datetime.fromtimestamp(ts)    # 0時0分のタイムスタンプを作成
