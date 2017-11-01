@@ -530,7 +530,7 @@ if __name__ == '__main__':
                 else:   # Get失敗 再試行
                     continue
             
-            if parsed_data:
+            if edt:
                 if epc == 'operation_status':
                     result = True if edt == b'\x30' else False
 
