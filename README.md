@@ -1,6 +1,6 @@
 ## NAME  
 Wi-Sun_EnergyMeter（ワイサンエナジーメーター）  
-Branch 0.6a  
+Branch 0.7a  
 
 
 ## Overview
