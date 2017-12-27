@@ -33,6 +33,8 @@ POW_DAYS_JSON_FILE = LOG_DIR + 'pow_days.json'  # JSON形式の電力ログフ�
 POW_DAY_LOG_HEAD = 'pow_day_'   # 日別ログファイル名の先頭
 POW_DAY_LOG_FMT = '%Y%m%d'      #        日時フォーマット
 
+CURR_POW_FILE = TMP_LOG_DIR + 'curr_pow.txt'
+
 # 低圧スマート電力量計 情報保存用リスト
 sem_info = {}
 
@@ -677,6 +679,9 @@ if __name__ == '__main__':
                                     watt_int = int.from_bytes(parsed_data['ptys'][0]['edt'], 'big', signed=True)
                                     sys.stdout.write('[{:5d}] {:4d} W\n'.format(tid_counter, watt_int))
                                     sys.stdout.flush()
+                                    
+                                    with open(CURR_POW_FILE, 'w') as fs:
+                                        fs.write(str(watt_int))
                             
                                     try:    # 一時ログファイルに書き込み
                                         f = open(TMP_LOG_FILE, 'a')        # rcd_time[ms] (JavaScript用)
