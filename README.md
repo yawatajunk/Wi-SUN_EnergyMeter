@@ -69,7 +69,7 @@ git及びnode.jsがインストールされている必要があります。
 ```
 $ git clone https://github.com/yawatajunk/Wi-SUN_EnergyMeter.git
 $ cd Wi-SUN_EnergyMeter
-$ git checkout 0.6a
+$ git checkout 0.7a
 $ cd sem_app
 $ npm install
 ```
@@ -172,10 +172,11 @@ WEBサーバにブラウザで`http://サーバURL:ポート番号/`にアクセ
 0.6a: node.jsとモジュールをアップデート  
       sem_com.pyの安定性向上
       UNIXドメインソケット及びログファイル周りを改善  
+0.7a: 配信WEBサーバに瞬時電力を返すだけのページ(/inst_power)を追加  
 
 
 ## Support Site
-[blue-black.ink/?p=2827](http://blue-black.ink/?p=2827)  
+[blue-black.ink/?p=3653](http://blue-black.ink/?p=3653)  
 
 ## Reference
 [Raspberry Pi](https://www.raspberrypi.org)  
